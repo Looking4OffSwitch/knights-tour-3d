@@ -15,6 +15,7 @@ interface ChessBoard3DProps {
   zoom?: number;
   verticalSpacing?: number;
   verticalOffset?: number;
+  knightScale?: number;
 }
 
 export default function ChessBoard3D({
@@ -26,6 +27,7 @@ export default function ChessBoard3D({
   zoom = 1.0,
   verticalSpacing = 120,
   verticalOffset = 0,
+  knightScale = 2.4,
 }: ChessBoard3DProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -223,12 +225,19 @@ export default function ChessBoard3D({
                           {/* Knight piece */}
                           {hasKnight && (
                             <div
-                              className="absolute inset-0 flex items-center justify-center text-2xl"
                               style={{
-                                transform: "translateZ(10px)",
+                                position: "absolute",
+                                left: "50%",
+                                top: "50%",
+                                fontSize: `${cellSize * knightScale}px`,
+                                lineHeight: 0,
+                                transform: "translate(-50%, -50%) translateZ(15px)",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
                               }}
                             >
-                              ♞
+                              <span style={{ display: "inline-block", verticalAlign: "middle" }}>♞</span>
                             </div>
                           )}
                         </div>

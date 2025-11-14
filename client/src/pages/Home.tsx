@@ -43,6 +43,7 @@ import { useEffect, useRef, useState } from "react";
 const DEFAULT_ZOOM = 1.2;
 const DEFAULT_VERTICAL_SPACING = 190;
 const DEFAULT_VERTICAL_OFFSET = 140;
+const DEFAULT_KNIGHT_SCALE = 2.4;
 
 // localStorage helpers
 const getStoredNumber = (key: string, defaultValue: number): number => {
@@ -109,6 +110,9 @@ export default function Home() {
   );
   const [viewControlsVisible, setViewControlsVisible] = useState(() =>
     getStoredBoolean("kt3d_viewControlsVisible", true)
+  );
+  const [knightScale, setKnightScale] = useState(() =>
+    getStoredNumber("kt3d_knightScale", DEFAULT_KNIGHT_SCALE)
   );
   const [configurationOpen, setConfigurationOpen] = useState(false);
 
@@ -185,6 +189,10 @@ export default function Home() {
     setStoredBoolean("kt3d_viewControlsVisible", viewControlsVisible);
   }, [viewControlsVisible]);
 
+  useEffect(() => {
+    setStoredNumber("kt3d_knightScale", knightScale);
+  }, [knightScale]);
+
   // Animation loop
   useEffect(() => {
     if (!isPlaying || solution.length === 0 || isPaused) return;
@@ -226,6 +234,42 @@ export default function Home() {
       setVisitedSquares(pathSoFar);
     }
   }, [currentStep, solution]);
+
+  // Keyboard controls
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if user is typing in an input/select/textarea
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLSelectElement ||
+        e.target instanceof HTMLTextAreaElement
+      ) {
+        return;
+      }
+
+      if (e.code === "Space") {
+        e.preventDefault();
+        // Toggle play/pause
+        if (isPlaying) {
+          togglePause();
+        } else {
+          startTour();
+        }
+      } else if (e.code === "Enter") {
+        e.preventDefault();
+        resetTour();
+      } else if (e.code === "ArrowLeft") {
+        e.preventDefault();
+        setSpeed(prev => Math.max(1, prev - 1));
+      } else if (e.code === "ArrowRight") {
+        e.preventDefault();
+        setSpeed(prev => Math.min(10, prev + 1));
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isPlaying]);
 
   // Show knight at starting position when not running
   useEffect(() => {
@@ -349,6 +393,7 @@ export default function Home() {
             zoom={zoom}
             verticalSpacing={verticalSpacing}
             verticalOffset={verticalOffset}
+            knightScale={knightScale}
           />
         </div>
 
@@ -659,6 +704,24 @@ export default function Home() {
                         </Select>
                       </div>
                     </div>
+                  </div>
+
+                  {/* Knight Scale */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="knight-scale">Knight Scale</Label>
+                      <span className="text-sm text-muted-foreground">
+                        {knightScale.toFixed(1)}x
+                      </span>
+                    </div>
+                    <Slider
+                      id="knight-scale"
+                      min={0.5}
+                      max={5}
+                      step={0.1}
+                      value={[knightScale]}
+                      onValueChange={([value]) => setKnightScale(value)}
+                    />
                   </div>
                 </CardContent>
               )}
