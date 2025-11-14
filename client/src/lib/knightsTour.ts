@@ -18,8 +18,14 @@ export interface TourResult {
 
 // Knight moves in 2D (within a layer)
 const MOVES_2D = [
-  [2, 1], [2, -1], [-2, 1], [-2, -1],
-  [1, 2], [1, -2], [-1, 2], [-1, -2]
+  [2, 1],
+  [2, -1],
+  [-2, 1],
+  [-2, -1],
+  [1, 2],
+  [1, -2],
+  [-1, 2],
+  [-1, -2],
 ];
 
 // Knight moves between layers (2D move + layer change)
@@ -27,10 +33,22 @@ const MOVES_3D = [
   // Move within same layer
   ...MOVES_2D.map(([dx, dy]) => [dx, dy, 0]),
   // Move to adjacent layers with smaller 2D displacement
-  [1, 0, 1], [1, 0, -1], [-1, 0, 1], [-1, 0, -1],
-  [0, 1, 1], [0, 1, -1], [0, -1, 1], [0, -1, -1],
-  [1, 1, 1], [1, 1, -1], [1, -1, 1], [1, -1, -1],
-  [-1, 1, 1], [-1, 1, -1], [-1, -1, 1], [-1, -1, -1],
+  [1, 0, 1],
+  [1, 0, -1],
+  [-1, 0, 1],
+  [-1, 0, -1],
+  [0, 1, 1],
+  [0, 1, -1],
+  [0, -1, 1],
+  [0, -1, -1],
+  [1, 1, 1],
+  [1, 1, -1],
+  [1, -1, 1],
+  [1, -1, -1],
+  [-1, 1, 1],
+  [-1, 1, -1],
+  [-1, -1, 1],
+  [-1, -1, -1],
 ];
 
 export function positionToKey(pos: Position): string {
@@ -87,12 +105,12 @@ export function sortMovesByWarnsdorf(
   visited: Set<string>
 ): Position[] {
   return moves
-    .map((move) => ({
+    .map(move => ({
       move,
       accessibility: getValidMoves(move, boardSize, layers, visited).length,
     }))
     .sort((a, b) => a.accessibility - b.accessibility)
-    .map((item) => item.move);
+    .map(item => item.move);
 }
 
 export function solveKnightsTour(

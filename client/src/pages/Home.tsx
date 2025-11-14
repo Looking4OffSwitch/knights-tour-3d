@@ -1,6 +1,12 @@
 import ChessBoard3D from "@/components/ChessBoard3D";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -19,12 +25,63 @@ import {
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { solveKnightsTour, type Position } from "@/lib/knightsTour";
-import { ChevronLeft, ChevronRight, Info, Pause, Play, RotateCcw, SkipBack, SkipForward } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  EyeOff,
+  Info,
+  Pause,
+  Play,
+  RotateCcw,
+  SkipBack,
+  SkipForward,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+
+// Default view settings
+const DEFAULT_ZOOM = 1.2;
+const DEFAULT_VERTICAL_SPACING = 190;
+const DEFAULT_VERTICAL_OFFSET = 140;
+
+// localStorage helpers
+const getStoredNumber = (key: string, defaultValue: number): number => {
+  try {
+    const stored = localStorage.getItem(key);
+    return stored !== null ? parseFloat(stored) : defaultValue;
+  } catch {
+    return defaultValue;
+  }
+};
+
+const setStoredNumber = (key: string, value: number) => {
+  try {
+    localStorage.setItem(key, value.toString());
+  } catch {
+    // Ignore storage errors
+  }
+};
+
+const getStoredBoolean = (key: string, defaultValue: boolean): boolean => {
+  try {
+    const stored = localStorage.getItem(key);
+    return stored !== null ? stored === "true" : defaultValue;
+  } catch {
+    return defaultValue;
+  }
+};
+
+const setStoredBoolean = (key: string, value: boolean) => {
+  try {
+    localStorage.setItem(key, value.toString());
+  } catch {
+    // Ignore storage errors
+  }
+};
 
 export default function Home() {
   const [layers, setLayers] = useState(3);
-  const [boardSize, setBoardSize] = useState(8);
+  const boardSize = 8; // Fixed board size
   const [startPos, setStartPos] = useState<Position>({ x: 0, y: 0, layer: 0 });
   const [currentPath, setCurrentPath] = useState<Position[]>([]);
   const [visitedSquares, setVisitedSquares] = useState<Position[]>([]);
@@ -33,9 +90,28 @@ export default function Home() {
   const [speed, setSpeed] = useState(1);
   const [currentStep, setCurrentStep] = useState(0);
   const [solution, setSolution] = useState<Position[]>([]);
-  const [stats, setStats] = useState({ computationTime: 0, totalMoves: 0, backtracks: 0 });
+  const [stats, setStats] = useState({
+    computationTime: 0,
+    totalMoves: 0,
+    backtracks: 0,
+  });
   const [controlPanelOpen, setControlPanelOpen] = useState(true);
-  
+
+  // View controls with localStorage persistence
+  const [zoom, setZoom] = useState(() =>
+    getStoredNumber("kt3d_zoom", DEFAULT_ZOOM)
+  );
+  const [verticalSpacing, setVerticalSpacing] = useState(() =>
+    getStoredNumber("kt3d_verticalSpacing", DEFAULT_VERTICAL_SPACING)
+  );
+  const [verticalOffset, setVerticalOffset] = useState(() =>
+    getStoredNumber("kt3d_verticalOffset", DEFAULT_VERTICAL_OFFSET)
+  );
+  const [viewControlsVisible, setViewControlsVisible] = useState(() =>
+    getStoredBoolean("kt3d_viewControlsVisible", true)
+  );
+  const [configurationOpen, setConfigurationOpen] = useState(false);
+
   const animationRef = useRef<number | undefined>(undefined);
   const lastUpdateRef = useRef<number>(0);
 
@@ -57,11 +133,11 @@ export default function Home() {
   const startTour = async () => {
     resetTour();
     setIsPlaying(true);
-    
+
     const startTime = performance.now();
     const result = solveKnightsTour(boardSize, layers, startPos);
     const endTime = performance.now();
-    
+
     if (result.solution.length > 0) {
       setSolution(result.solution);
       setStats({
@@ -92,13 +168,30 @@ export default function Home() {
     setIsPaused(prev => !prev);
   };
 
+  // Persist view controls to localStorage
+  useEffect(() => {
+    setStoredNumber("kt3d_zoom", zoom);
+  }, [zoom]);
+
+  useEffect(() => {
+    setStoredNumber("kt3d_verticalSpacing", verticalSpacing);
+  }, [verticalSpacing]);
+
+  useEffect(() => {
+    setStoredNumber("kt3d_verticalOffset", verticalOffset);
+  }, [verticalOffset]);
+
+  useEffect(() => {
+    setStoredBoolean("kt3d_viewControlsVisible", viewControlsVisible);
+  }, [viewControlsVisible]);
+
   // Animation loop
   useEffect(() => {
     if (!isPlaying || solution.length === 0 || isPaused) return;
 
     const animate = (timestamp: number) => {
       if (!lastUpdateRef.current) lastUpdateRef.current = timestamp;
-      
+
       const elapsed = timestamp - lastUpdateRef.current;
       const interval = 1000 / speed;
 
@@ -142,8 +235,12 @@ export default function Home() {
     }
   }, [startPos, isPlaying, solution.length]);
 
-  const knightPosition = currentPath.length > 0 ? currentPath[currentPath.length - 1] : startPos;
-  const progress = totalSquares > 0 ? Math.round((visitedSquares.length / totalSquares) * 100) : 0;
+  const knightPosition =
+    currentPath.length > 0 ? currentPath[currentPath.length - 1] : startPos;
+  const progress =
+    totalSquares > 0
+      ? Math.round((visitedSquares.length / totalSquares) * 100)
+      : 0;
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -152,17 +249,22 @@ export default function Home() {
         <div className="container py-3">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-primary">Knight's Tour 3D Visualizer</h1>
+              <h1 className="text-2xl font-bold text-primary">
+                Knight's Tour 3D Visualizer
+              </h1>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Watch the knight's tour algorithm solve multi-layered chessboards
+                Watch the knight's tour algorithm solve multi-layered
+                chessboards
               </p>
             </div>
-            
+
             <div className="flex items-center gap-6">
               {/* Status */}
               <div className="flex items-center gap-4 text-sm">
                 <div className="flex flex-col items-end">
-                  <span className="text-xs text-muted-foreground">Progress</span>
+                  <span className="text-xs text-muted-foreground">
+                    Progress
+                  </span>
                   <span className="font-semibold">
                     {visitedSquares.length} / {totalSquares} ({progress}%)
                   </span>
@@ -184,14 +286,18 @@ export default function Home() {
                 <div className="flex items-center gap-4 text-sm border-l pl-6">
                   <div className="flex flex-col items-end">
                     <span className="text-xs text-muted-foreground">Time</span>
-                    <span className="font-semibold">{stats.computationTime.toFixed(2)} ms</span>
+                    <span className="font-semibold">
+                      {stats.computationTime.toFixed(2)} ms
+                    </span>
                   </div>
                   <div className="flex flex-col items-end">
                     <span className="text-xs text-muted-foreground">Moves</span>
                     <span className="font-semibold">{stats.totalMoves}</span>
                   </div>
                   <div className="flex flex-col items-end">
-                    <span className="text-xs text-muted-foreground">Backtracks</span>
+                    <span className="text-xs text-muted-foreground">
+                      Backtracks
+                    </span>
                     <span className="font-semibold">{stats.backtracks}</span>
                   </div>
                 </div>
@@ -209,16 +315,17 @@ export default function Home() {
                     <DialogTitle>About Knight's Tour</DialogTitle>
                     <DialogDescription className="space-y-3 pt-4">
                       <p>
-                        The knight's tour is a sequence of moves where a chess knight visits every square
-                        exactly once.
+                        The knight's tour is a sequence of moves where a chess
+                        knight visits every square exactly once.
                       </p>
                       <p>
-                        This visualizer extends the classic problem to 3D by stacking multiple chessboard
-                        layers, creating new movement possibilities.
+                        This visualizer extends the classic problem to 3D by
+                        stacking multiple chessboard layers, creating new
+                        movement possibilities.
                       </p>
                       <p className="text-xs">
-                        <strong>Algorithm:</strong> Backtracking with Warnsdorf's heuristic for optimal
-                        performance
+                        <strong>Algorithm:</strong> Backtracking with
+                        Warnsdorf's heuristic for optimal performance
                       </p>
                     </DialogDescription>
                   </DialogHeader>
@@ -239,25 +346,9 @@ export default function Home() {
             knightPosition={knightPosition}
             visitedSquares={visitedSquares}
             path={currentPath}
-            controlButtons={
-              <>
-                <Button
-                  onClick={isPlaying ? () => setIsPaused(!isPaused) : startTour}
-                  size="lg"
-                  className="w-14 h-14"
-                >
-                  {isPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}
-                </Button>
-                <Button
-                  onClick={resetTour}
-                  variant="outline"
-                  size="lg"
-                  className="w-14 h-14"
-                >
-                  <RotateCcw className="h-6 w-6" />
-                </Button>
-              </>
-            }
+            zoom={zoom}
+            verticalSpacing={verticalSpacing}
+            verticalOffset={verticalOffset}
           />
         </div>
 
@@ -281,189 +372,296 @@ export default function Home() {
           } transition-all duration-300 border-l border-border/50 bg-card/30 backdrop-blur-sm overflow-hidden flex flex-col`}
         >
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            {/* View Controls */}
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg">View Controls</CardTitle>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => setViewControlsVisible(!viewControlsVisible)}
+                  >
+                    {viewControlsVisible ? (
+                      <Eye className="h-4 w-4" />
+                    ) : (
+                      <EyeOff className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+                <CardDescription>
+                  Adjust 3D visualization appearance
+                </CardDescription>
+              </CardHeader>
+              {viewControlsVisible && (
+                <CardContent className="space-y-4">
+                  {/* Zoom */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <Label htmlFor="zoom">Zoom</Label>
+                      <span className="text-xs text-muted-foreground">
+                        {zoom.toFixed(1)}x
+                      </span>
+                    </div>
+                    <Slider
+                      id="zoom"
+                      min={0.5}
+                      max={2.0}
+                      step={0.1}
+                      value={[zoom]}
+                      onValueChange={value => setZoom(value[0])}
+                      onKeyDown={e => {
+                        if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+                          e.preventDefault();
+                        }
+                      }}
+                    />
+                  </div>
+
+                  {/* Vertical Spacing */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <Label htmlFor="vertical-spacing">Vertical Spacing</Label>
+                      <span className="text-xs text-muted-foreground">
+                        {verticalSpacing}px
+                      </span>
+                    </div>
+                    <Slider
+                      id="vertical-spacing"
+                      min={80}
+                      max={250}
+                      step={10}
+                      value={[verticalSpacing]}
+                      onValueChange={value => setVerticalSpacing(value[0])}
+                      onKeyDown={e => {
+                        if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+                          e.preventDefault();
+                        }
+                      }}
+                    />
+                  </div>
+
+                  {/* Vertical Position */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <Label htmlFor="vertical-position">
+                        Vertical Position
+                      </Label>
+                      <span className="text-xs text-muted-foreground">
+                        {verticalOffset}px
+                      </span>
+                    </div>
+                    <Slider
+                      id="vertical-position"
+                      min={-100}
+                      max={300}
+                      step={10}
+                      value={[verticalOffset]}
+                      onValueChange={value => setVerticalOffset(value[0])}
+                      onKeyDown={e => {
+                        if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+                          e.preventDefault();
+                        }
+                      }}
+                    />
+                  </div>
+
+                  {/* Animation Speed */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between">
+                      <Label htmlFor="speed">Animation Speed</Label>
+                      <span className="text-xs text-muted-foreground">
+                        {speed} steps/s
+                      </span>
+                    </div>
+                    <Slider
+                      id="speed"
+                      min={1}
+                      max={10}
+                      step={1}
+                      value={[speed]}
+                      onValueChange={value => setSpeed(value[0])}
+                      onKeyDown={e => {
+                        if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+                          e.preventDefault();
+                        }
+                      }}
+                    />
+                  </div>
+
+                  {/* Control Buttons */}
+                  <div className="space-y-2">
+                    <Label>Tour Controls</Label>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={
+                          isPlaying ? () => setIsPaused(!isPaused) : startTour
+                        }
+                        className="flex-1 h-12 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md inline-flex items-center justify-center gap-2 transition-colors font-medium"
+                      >
+                        {isPlaying ? (
+                          <>
+                            <Pause className="h-5 w-5" />
+                            {isPaused ? "Resume" : "Pause"}
+                          </>
+                        ) : (
+                          <>
+                            <Play className="h-5 w-5" />
+                            Start
+                          </>
+                        )}
+                      </button>
+                      <button
+                        onClick={resetTour}
+                        className="h-12 px-4 border border-border bg-transparent hover:bg-accent rounded-md inline-flex items-center justify-center transition-colors"
+                      >
+                        <RotateCcw className="h-5 w-5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Reset Button */}
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => {
+                      setZoom(DEFAULT_ZOOM);
+                      setVerticalSpacing(DEFAULT_VERTICAL_SPACING);
+                      setVerticalOffset(DEFAULT_VERTICAL_OFFSET);
+                    }}
+                  >
+                    Reset to Defaults
+                  </Button>
+                </CardContent>
+              )}
+            </Card>
+
             {/* Configuration */}
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-lg">Configuration</CardTitle>
-                <CardDescription>Set up the board and starting position</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Board Size */}
-                <div className="space-y-2">
-                  <Label htmlFor="board-size">Board Size</Label>
-                  <Select
-                    value={boardSize.toString()}
-                    onValueChange={(value) => {
-                      setBoardSize(parseInt(value));
-                      resetTour();
-                    }}
-                    disabled={isPlaying}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-lg">Configuration</CardTitle>
+                    <CardDescription>
+                      Set up the board and starting position
+                    </CardDescription>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => setConfigurationOpen(!configurationOpen)}
                   >
-                    <SelectTrigger id="board-size">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="5">5 × 5</SelectItem>
-                      <SelectItem value="8">8 × 8 (Standard)</SelectItem>
-                      <SelectItem value="10">10 × 10</SelectItem>
-                    </SelectContent>
-                  </Select>
+                    {configurationOpen ? (
+                      <ChevronRight className="h-4 w-4" />
+                    ) : (
+                      <ChevronLeft className="h-4 w-4" />
+                    )}
+                  </Button>
                 </div>
-
-                {/* Layers */}
-                <div className="space-y-2">
-                  <Label htmlFor="layers">Number of Layers</Label>
-                  <Select
-                    value={layers.toString()}
-                    onValueChange={(value) => {
-                      setLayers(parseInt(value));
-                      resetTour();
-                    }}
-                    disabled={isPlaying}
-                  >
-                    <SelectTrigger id="layers">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1">1 Layer (2D)</SelectItem>
-                      <SelectItem value="2">2 Layers</SelectItem>
-                      <SelectItem value="3">3 Layers</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Starting Position */}
-                <div className="space-y-2">
-                  <Label>Starting Position</Label>
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="space-y-1">
-                      <Label htmlFor="start-x" className="text-xs">
-                        X
-                      </Label>
-                      <Select
-                        value={startPos.x.toString()}
-                        onValueChange={(value) =>
-                          setStartPos({ ...startPos, x: parseInt(value) })
-                        }
-                        disabled={isPlaying}
-                      >
-                        <SelectTrigger id="start-x">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Array.from({ length: boardSize }, (_, i) => (
-                            <SelectItem key={i} value={i.toString()}>
-                              {i}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="start-y" className="text-xs">
-                        Y
-                      </Label>
-                      <Select
-                        value={startPos.y.toString()}
-                        onValueChange={(value) =>
-                          setStartPos({ ...startPos, y: parseInt(value) })
-                        }
-                        disabled={isPlaying}
-                      >
-                        <SelectTrigger id="start-y">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Array.from({ length: boardSize }, (_, i) => (
-                            <SelectItem key={i} value={i.toString()}>
-                              {i}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1">
-                      <Label htmlFor="start-layer" className="text-xs">
-                        Layer
-                      </Label>
-                      <Select
-                        value={startPos.layer.toString()}
-                        onValueChange={(value) =>
-                          setStartPos({ ...startPos, layer: parseInt(value) })
-                        }
-                        disabled={isPlaying}
-                      >
-                        <SelectTrigger id="start-layer">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Array.from({ length: layers }, (_, i) => (
-                            <SelectItem key={i} value={i.toString()}>
-                              {i}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Animation Speed */}
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <Label htmlFor="speed">Animation Speed</Label>
-                    <span className="text-xs text-muted-foreground">{speed} steps/s</span>
-                  </div>
-                  <Slider
-                    id="speed"
-                    min={1}
-                    max={10}
-                    step={1}
-                    value={[speed]}
-                    onValueChange={(value) => setSpeed(value[0])}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Controls */}
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg">Controls</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                {/* Step Controls */}
-                {solution.length > 0 && (
-                  <div className="flex items-center justify-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={stepBackward}
-                      disabled={currentStep === 0}
+              {configurationOpen && (
+                <CardContent className="space-y-4">
+                  {/* Layers */}
+                  <div className="space-y-2">
+                    <Label htmlFor="layers">Number of Layers</Label>
+                    <Select
+                      value={layers.toString()}
+                      onValueChange={value => {
+                        setLayers(parseInt(value));
+                        resetTour();
+                      }}
+                      disabled={isPlaying}
                     >
-                      <SkipBack className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={togglePause}
-                      disabled={!isPlaying}
-                    >
-                      {isPaused ? <Play className="h-4 w-4" /> : <Pause className="h-4 w-4" />}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={stepForward}
-                      disabled={currentStep >= solution.length - 1}
-                    >
-                      <SkipForward className="h-4 w-4" />
-                    </Button>
+                      <SelectTrigger id="layers">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">1 Layer (2D)</SelectItem>
+                        <SelectItem value="2">2 Layers</SelectItem>
+                        <SelectItem value="3">3 Layers</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-                )}
 
-                {/* Main controls moved under Layer 1 board */}
-              </CardContent>
+                  {/* Starting Position */}
+                  <div className="space-y-2">
+                    <Label>Starting Position</Label>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="space-y-1">
+                        <Label htmlFor="start-x" className="text-xs">
+                          X
+                        </Label>
+                        <Select
+                          value={startPos.x.toString()}
+                          onValueChange={value =>
+                            setStartPos({ ...startPos, x: parseInt(value) })
+                          }
+                          disabled={isPlaying}
+                        >
+                          <SelectTrigger id="start-x">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Array.from({ length: boardSize }, (_, i) => (
+                              <SelectItem key={i} value={i.toString()}>
+                                {i}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="start-y" className="text-xs">
+                          Y
+                        </Label>
+                        <Select
+                          value={startPos.y.toString()}
+                          onValueChange={value =>
+                            setStartPos({ ...startPos, y: parseInt(value) })
+                          }
+                          disabled={isPlaying}
+                        >
+                          <SelectTrigger id="start-y">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Array.from({ length: boardSize }, (_, i) => (
+                              <SelectItem key={i} value={i.toString()}>
+                                {i}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="start-layer" className="text-xs">
+                          Layer
+                        </Label>
+                        <Select
+                          value={startPos.layer.toString()}
+                          onValueChange={value =>
+                            setStartPos({ ...startPos, layer: parseInt(value) })
+                          }
+                          disabled={isPlaying}
+                        >
+                          <SelectTrigger id="start-layer">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Array.from({ length: layers }, (_, i) => (
+                              <SelectItem key={i} value={i.toString()}>
+                                {i}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              )}
             </Card>
           </div>
         </div>
