@@ -4,23 +4,21 @@ This project is configured for Vercel static hosting via `vercel.json`. The buil
 
 ## 1. Prerequisites
 
-- Install pnpm (v10+) locally; Vercel will run `pnpm install --frozen-lockfile`.
+- Install pnpm (v10+) locally; Vercel will use Corepack to install the correct version.
 - Authenticate with the Vercel CLI: `pnpm dlx vercel login`.
-- Ensure the required environment variables are available before building.
+- The project uses pnpm 10.4.1 as specified in `package.json`.
 
 ## 2. Required Environment Variables
 
-Set these in your Vercel Project Settings (`Settings → Environment Variables`). Use the same values for `Production`, `Preview`, and `Development` unless you intentionally differ:
+This project requires **Corepack** to be enabled in Vercel to use pnpm 10.x.
 
-| Key                           | Description                                                                              |
-| ----------------------------- | ---------------------------------------------------------------------------------------- |
-| `VITE_APP_TITLE`              | UI title string. Optional, defaults to `App`.                                            |
-| `VITE_APP_ID`                 | OAuth application/client identifier for login redirects.                                 |
-| `VITE_OAUTH_PORTAL_URL`       | Base URL to the OAuth portal (e.g., `https://accounts.example.com`).                     |
-| `VITE_FRONTEND_FORGE_API_KEY` | Google Maps proxy API key issued by Forge.                                               |
-| `VITE_FRONTEND_FORGE_API_URL` | Optional base URL for the Forge proxy; defaults to `https://forge.butterfly-effect.dev`. |
+In your Vercel Project Settings (`Settings → Environment Variables`), add:
 
-Changes to these vars require a redeploy.
+| Key                           | Value | Description                                      |
+| ----------------------------- | ----- | ------------------------------------------------ |
+| `ENABLE_EXPERIMENTAL_COREPACK` | `1`   | Enables Corepack to use pnpm 10.x from package.json |
+
+Apply this to all environments (Production, Preview, Development).
 
 ## 3. Local Verification
 
@@ -30,23 +28,44 @@ Before pushing to Vercel:
 pnpm install
 pnpm build        # runs Vite build + server bundle
 pnpm preview      # smoke-test the built client
-pnpm exec vercel build  # optional, mirrors Vercel’s CI build
 ```
 
 ## 4. Installing pnpm
 
-| Platform | Command                                             | Notes                                                                     |
-| -------- | --------------------------------------------------- | ------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| Windows  | `iwr https://get.pnpm.io/install.ps1 -useb          | iex`                                                                      | Run in PowerShell; re-open the terminal so the pnpm shim loads. |
-| macOS    | `curl -fsSL https://get.pnpm.io/install.sh \| sh -` | Works with zsh/bash; restart the shell to update `PATH`.                  |
+| Platform | Command                                              | Notes                                                                     |
+| -------- | ---------------------------------------------------- | ------------------------------------------------------------------------- |
+| Windows  | `iwr https://get.pnpm.io/install.ps1 -useb \| iex`  | Run in PowerShell; re-open the terminal so the pnpm shim loads.          |
+| macOS    | `curl -fsSL https://get.pnpm.io/install.sh \| sh -` | Works with zsh/bash; restart the shell to update `PATH`.                 |
 | Linux    | `curl -fsSL https://get.pnpm.io/install.sh \| sh -` | Compatible with major distros; ensure `~/.local/share/pnpm` is on `PATH`. |
 
-Verify with `pnpm -v`. Pin to the repo’s expected major version (10+) to avoid lockfile churn.
+Verify with `pnpm -v`. Pin to the repo's expected major version (10+) to avoid lockfile churn.
 
-## 4. Deploying
+## 5. Deploying via GitHub Integration
 
-1. Run `pnpm exec vercel link` once to associate the repo with a Vercel project.
-2. Deploy previews per branch with `pnpm exec vercel --prebuilt` (uses local `pnpm build` output) or `pnpm exec vercel` to let Vercel build.
-3. Promote to production via `pnpm exec vercel --prod`.
+1. Go to [vercel.com/new](https://vercel.com/new)
+2. Import your GitHub repository: `Looking4OffSwitch/knights-tour-3d`
+3. **Before deploying**, add the environment variable:
+   - Go to **Settings** → **Environment Variables**
+   - Add `ENABLE_EXPERIMENTAL_COREPACK` = `1`
+4. Trigger a deployment
 
 The `routes` rule in `vercel.json` ensures SPA-style client routing by rewriting unmatched paths to `index.html`.
+
+## 6. Deploying via Vercel CLI (Optional)
+
+1. Run `pnpm dlx vercel link` once to associate the repo with a Vercel project.
+2. Ensure `ENABLE_EXPERIMENTAL_COREPACK=1` is set in your project settings.
+3. Deploy previews per branch with `pnpm dlx vercel`
+4. Promote to production via `pnpm dlx vercel --prod`
+
+## Troubleshooting
+
+### "ERR_PNPM_LOCKFILE_CONFIG_MISMATCH"
+
+This error occurs when Vercel uses pnpm 9.x but the lockfile was created with pnpm 10.x.
+
+**Solution**: Ensure `ENABLE_EXPERIMENTAL_COREPACK=1` is set in Vercel's environment variables.
+
+### Patched Dependencies
+
+The project uses a patched version of `wouter@3.7.1`. Corepack with pnpm 10.x is required to properly install this patch during deployment.
