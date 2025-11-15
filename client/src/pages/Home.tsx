@@ -481,8 +481,9 @@ export default function Home() {
         {/* Collapse Button - Always Visible */}
         <button
           onClick={() => setControlPanelOpen(!controlPanelOpen)}
-          className="fixed top-1/2 -translate-y-1/2 z-50 bg-card border border-border rounded-l-lg p-2 hover:bg-accent transition-colors shadow-lg"
-          style={{ right: controlPanelOpen ? "384px" : "0" }}
+          className={`fixed top-1/2 -translate-y-1/2 z-50 bg-card border border-border rounded-l-lg p-2 hover:bg-accent transition-all duration-300 shadow-lg ${
+            controlPanelOpen ? "right-96" : "right-0"
+          }`}
         >
           {controlPanelOpen ? (
             <ChevronRight className="h-4 w-4" />
@@ -682,7 +683,7 @@ export default function Home() {
                     setOcclusionEnabled(DEFAULT_OCCLUSION_ENABLED);
                   }}
                 >
-                  Reset to Defaults
+                  Reset Controls
                 </Button>
 
                 <Separator />
