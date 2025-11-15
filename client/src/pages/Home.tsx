@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
 import { solveKnightsTour, type Position } from "@/lib/knightsTour";
 import { generateGradient } from "@/lib/gradientUtils";
 import {
@@ -48,6 +49,8 @@ const DEFAULT_VERTICAL_OFFSET = 140;
 const DEFAULT_KNIGHT_SCALE = 0.8;
 const DEFAULT_GRADIENT_START = "#004f44"; // Dark teal
 const DEFAULT_GRADIENT_END = "#22a75e"; // Green
+const DEFAULT_OCCLUSION_ZONE_RADIUS = 1; // 3x3 grid (radius 1 = 3x3, radius 2 = 5x5, etc.)
+const DEFAULT_OCCLUSION_ENABLED = false; // Occlusion system disabled by default
 
 // localStorage helpers
 const getStoredNumber = (key: string, defaultValue: number): number => {
@@ -137,6 +140,12 @@ export default function Home() {
   );
   const [gradientEnd, setGradientEnd] = useState(() =>
     getStoredString("kt3d_gradientEnd", DEFAULT_GRADIENT_END)
+  );
+  const [occlusionZoneRadius, setOcclusionZoneRadius] = useState(() =>
+    getStoredNumber("kt3d_occlusionZoneRadius", DEFAULT_OCCLUSION_ZONE_RADIUS)
+  );
+  const [occlusionEnabled, setOcclusionEnabled] = useState(() =>
+    getStoredBoolean("kt3d_occlusionEnabled", DEFAULT_OCCLUSION_ENABLED)
   );
 
   const animationRef = useRef<number | undefined>(undefined);
@@ -232,6 +241,14 @@ export default function Home() {
   useEffect(() => {
     setStoredString("kt3d_gradientEnd", gradientEnd);
   }, [gradientEnd]);
+
+  useEffect(() => {
+    setStoredNumber("kt3d_occlusionZoneRadius", occlusionZoneRadius);
+  }, [occlusionZoneRadius]);
+
+  useEffect(() => {
+    setStoredBoolean("kt3d_occlusionEnabled", occlusionEnabled);
+  }, [occlusionEnabled]);
 
   // Animation loop
   useEffect(() => {
@@ -436,6 +453,8 @@ export default function Home() {
             knightScale={knightScale}
             gradientStart={gradientStart}
             gradientEnd={gradientEnd}
+            occlusionZoneRadius={occlusionZoneRadius}
+            occlusionEnabled={occlusionEnabled}
           />
         </div>
 
@@ -592,6 +611,37 @@ export default function Home() {
                         <RotateCcw className="h-5 w-5" />
                       </button>
                     </div>
+
+                    {/* Manual Step Controls - always visible when solution exists */}
+                    {solution.length > 0 && (
+                      <div className="space-y-2 pt-2">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-xs text-muted-foreground">
+                            Step {currentStep + 1} of {solution.length}
+                          </Label>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={stepBackward}
+                            disabled={currentStep === 0 || (isPlaying && !isPaused)}
+                            className="flex-1 h-10 border border-border bg-transparent hover:bg-accent rounded-md inline-flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            aria-label="Previous step"
+                          >
+                            <ChevronLeft className="h-4 w-4" />
+                            <span className="text-sm">Previous</span>
+                          </button>
+                          <button
+                            onClick={stepForward}
+                            disabled={currentStep >= solution.length - 1 || (isPlaying && !isPaused)}
+                            className="flex-1 h-10 border border-border bg-transparent hover:bg-accent rounded-md inline-flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            aria-label="Next step"
+                          >
+                            <span className="text-sm">Next</span>
+                            <ChevronRight className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Reset Button */}
@@ -605,6 +655,8 @@ export default function Home() {
                       setKnightScale(DEFAULT_KNIGHT_SCALE);
                       setGradientStart(DEFAULT_GRADIENT_START);
                       setGradientEnd(DEFAULT_GRADIENT_END);
+                      setOcclusionZoneRadius(DEFAULT_OCCLUSION_ZONE_RADIUS);
+                      setOcclusionEnabled(DEFAULT_OCCLUSION_ENABLED);
                     }}
                   >
                     Reset to Defaults
@@ -754,6 +806,52 @@ export default function Home() {
                       onChange={setGradientEnd}
                       id="gradient-end"
                     />
+                  </div>
+
+                  {/* Occlusion System */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="occlusion-enabled" className="text-sm">
+                        Knight Visibility System
+                      </Label>
+                      <Switch
+                        id="occlusion-enabled"
+                        checked={occlusionEnabled}
+                        onCheckedChange={setOcclusionEnabled}
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Makes squares transparent when the knight is hidden behind upper layers.
+                    </p>
+
+                    {/* Occlusion Zone Size - only show when enabled */}
+                    {occlusionEnabled && (
+                      <div className="space-y-2 pt-2">
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor="occlusion-zone" className="text-xs">
+                            Zone Size
+                          </Label>
+                          <span className="text-xs text-muted-foreground">
+                            {occlusionZoneRadius === 0 && "1×1"}
+                            {occlusionZoneRadius === 1 && "3×3"}
+                            {occlusionZoneRadius === 2 && "5×5"}
+                            {occlusionZoneRadius === 3 && "7×7"}
+                            {occlusionZoneRadius === 4 && "9×9"}
+                          </span>
+                        </div>
+                        <Slider
+                          id="occlusion-zone"
+                          min={0}
+                          max={4}
+                          step={1}
+                          value={[occlusionZoneRadius]}
+                          onValueChange={([value]) => setOcclusionZoneRadius(value)}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Size of transparent area above knight. Larger values make it easier to see the knight.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
             </Card>

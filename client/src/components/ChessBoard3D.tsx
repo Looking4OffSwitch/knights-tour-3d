@@ -19,6 +19,8 @@ interface ChessBoard3DProps {
   knightScale?: number;
   gradientStart?: string;
   gradientEnd?: string;
+  occlusionZoneRadius?: number;
+  occlusionEnabled?: boolean;
 }
 
 export default function ChessBoard3D({
@@ -33,6 +35,8 @@ export default function ChessBoard3D({
   knightScale = 2.4,
   gradientStart = "#004f44",
   gradientEnd = "#22a75e",
+  occlusionZoneRadius = 1,
+  occlusionEnabled = false,
 }: ChessBoard3DProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -79,46 +83,47 @@ export default function ChessBoard3D({
     );
   };
 
-  // Calculate which squares should be transparent based on knight position and viewing angle
-  const shouldSquareBeTransparent = (
+  /**
+   * Determines if a square should be made transparent to reveal the knight below
+   *
+   * Uses a simple zone-based approach: if the knight is on a lower layer,
+   * squares directly above it (within a configurable zone radius) become transparent
+   * to ensure the knight remains visible.
+   *
+   * @param x - Square's X coordinate
+   * @param y - Square's Y coordinate
+   * @param currentLayer - The layer this square is on
+   * @param zoneRadius - Radius of the transparency zone (0 = exact position only, 1 = 3x3 grid, 2 = 5x5 grid, etc.)
+   * @returns Object with transparency state and whether square is in occlusion zone
+   */
+  const getSquareOcclusionState = (
     x: number,
     y: number,
-    layerIndex: number
-  ): boolean => {
-    // Only apply transparency if knight is on a lower layer AND would be occluded
-    if (!knightPosition || knightPosition.layer >= layerIndex) return false;
+    currentLayer: number,
+    zoneRadius: number
+  ): { isOccluding: boolean; distanceFromKnight: number } => {
+    // Occlusion system disabled - no transparency
+    if (!occlusionEnabled) {
+      return { isOccluding: false, distanceFromKnight: Infinity };
+    }
 
-    // Check if the knight is actually occluded by checking if any upper layer square
-    // would visually overlap with the knight's position from the current viewing angle
-    const knightX = knightPosition.x;
-    const knightY = knightPosition.y;
+    // No knight or knight is on this layer or above - no occlusion
+    if (!knightPosition || knightPosition.layer >= currentLayer) {
+      return { isOccluding: false, distanceFromKnight: Infinity };
+    }
 
-    // Calculate projection offset based on rotation angle and layer difference
-    const layerDiff = layerIndex - knightPosition.layer;
-    const angleRad = (rotationZ * Math.PI) / 180;
-    const projectionOffsetX = Math.round(Math.sin(angleRad) * layerDiff * 2);
-    const projectionOffsetY = Math.round(Math.cos(angleRad) * layerDiff * 2);
+    // Calculate if this square is within the occlusion zone
+    // The zone is a square grid centered on the knight's position
+    const deltaX = Math.abs(x - knightPosition.x);
+    const deltaY = Math.abs(y - knightPosition.y);
 
-    const projectedX = knightX + projectionOffsetX;
-    const projectedY = knightY + projectionOffsetY;
+    // Use Chebyshev distance (max of x and y differences) for square grid
+    const distanceFromKnight = Math.max(deltaX, deltaY);
 
-    // Only make transparent if this square actually occludes the knight
-    // Check if current square overlaps with projected knight position (3x3 region)
-    const inOcclusionZone =
-      x >= projectedX - 1 &&
-      x <= projectedX + 1 &&
-      y >= projectedY - 1 &&
-      y <= projectedY + 1;
+    // Square is occluding if it's within the zone radius
+    const isOccluding = distanceFromKnight <= zoneRadius;
 
-    // Additionally check if the knight is actually behind this layer visually
-    // by checking if the square is roughly above the knight's actual position
-    const isAboveKnight =
-      x >= knightX - 2 &&
-      x <= knightX + 2 &&
-      y >= knightY - 2 &&
-      y <= knightY + 2;
-
-    return inOcclusionZone && isAboveKnight;
+    return { isOccluding, distanceFromKnight };
   };
 
   // Convert board coordinates to 3D position
@@ -211,10 +216,13 @@ export default function ChessBoard3D({
                       const visited = isVisited(x, y, actualLayer);
                       const pathIdx = getPathIndex(x, y, actualLayer);
                       const hasKnight = isKnightPosition(x, y, actualLayer);
-                      const isTransparent = shouldSquareBeTransparent(
+
+                      // Check if this square is occluding the knight below
+                      const occlusionState = getSquareOcclusionState(
                         x,
                         y,
-                        actualLayer
+                        actualLayer,
+                        occlusionZoneRadius
                       );
 
                       // Get gradient color for visited squares based on path index
@@ -222,22 +230,30 @@ export default function ChessBoard3D({
                         ? getGradientColor(pathGradient, pathIdx)
                         : null;
 
+                      // Determine border color: amber for occluding squares, normal otherwise
+                      const borderColor = occlusionState.isOccluding
+                        ? "border-amber-500/70"
+                        : visited
+                          ? "border-border/50"
+                          : "border-border/30";
+
                       return (
                         <div
                           key={`${x}-${y}`}
-                          className={`absolute border flex items-center justify-center text-xs font-semibold transition-all duration-200 ${
+                          className={`absolute border-2 flex items-center justify-center text-xs font-semibold transition-all duration-200 ${borderColor} ${
                             visited
-                              ? "border-border/50"
+                              ? ""
                               : (x + y) % 2 === 0
-                                ? "bg-primary/20 border-border/30"
-                                : "bg-primary/40 border-border/30"
+                                ? "bg-primary/20"
+                                : "bg-primary/40"
                           }`}
                           style={{
                             width: `${cellSize}px`,
                             height: `${cellSize}px`,
                             left: `${x * cellSize}px`,
                             top: `${y * cellSize}px`,
-                            opacity: isTransparent ? 0.25 : 1,
+                            // Apply semi-transparency to occluding squares (0.2 = 20% opacity)
+                            opacity: occlusionState.isOccluding ? 0.2 : 1,
                             backgroundColor: gradientColor || undefined,
                             boxShadow: gradientColor ? `0 4px 6px -1px ${gradientColor}40, 0 2px 4px -1px ${gradientColor}30` : undefined,
                           }}
