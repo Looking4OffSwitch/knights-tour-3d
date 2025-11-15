@@ -29,8 +29,6 @@ import { solveKnightsTour, type Position } from "@/lib/knightsTour";
 import {
   ChevronLeft,
   ChevronRight,
-  Eye,
-  EyeOff,
   Info,
   Pause,
   Play,
@@ -109,9 +107,6 @@ export default function Home() {
   const [verticalOffset, setVerticalOffset] = useState(() =>
     getStoredNumber("kt3d_verticalOffset", DEFAULT_VERTICAL_OFFSET)
   );
-  const [viewControlsVisible, setViewControlsVisible] = useState(() =>
-    getStoredBoolean("kt3d_viewControlsVisible", true)
-  );
   const [knightScale, setKnightScale] = useState(() =>
     getStoredNumber("kt3d_knightScale", DEFAULT_KNIGHT_SCALE)
   );
@@ -184,10 +179,6 @@ export default function Home() {
   useEffect(() => {
     setStoredNumber("kt3d_verticalOffset", verticalOffset);
   }, [verticalOffset]);
-
-  useEffect(() => {
-    setStoredBoolean("kt3d_viewControlsVisible", viewControlsVisible);
-  }, [viewControlsVisible]);
 
   useEffect(() => {
     setStoredNumber("kt3d_knightScale", knightScale);
@@ -419,25 +410,12 @@ export default function Home() {
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
             {/* Controls */}
             <Card>
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">Controls</CardTitle>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => setViewControlsVisible(!viewControlsVisible)}
-                  >
-                    {viewControlsVisible ? (
-                      <Eye className="h-4 w-4" />
-                    ) : (
-                      <EyeOff className="h-4 w-4" />
-                    )}
-                  </Button>
-                </div>
+              <CardHeader className="pb-0 text-center">
+                <CardTitle className="text-lg">Controls</CardTitle>
               </CardHeader>
-              {viewControlsVisible && (
-                <CardContent className="space-y-4">
+              <CardContent className="pt-2 space-y-4">
+                  <Separator className="-mt-8 mb-2" />
+
                   {/* Zoom */}
                   <div className="space-y-2">
                     <div className="flex justify-between">
@@ -697,7 +675,6 @@ export default function Home() {
                     />
                   </div>
                 </CardContent>
-              )}
             </Card>
           </div>
         </div>
