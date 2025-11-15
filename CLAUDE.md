@@ -98,3 +98,4 @@ A 3D Knight's Tour visualizer built with React, TypeScript, and Vite. The applic
 - TypeScript with strict mode enabled
 - ESLint configured (some rules disabled, e.g., `react-hooks/exhaustive-deps` for specific cases)
 - Prettier for code formatting
+- Don't commit or push to git unless I specifically tell you to.

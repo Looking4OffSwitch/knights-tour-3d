@@ -883,6 +883,13 @@ export default function Home() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Version Display - Fixed at bottom of Controls pane */}
+          <div className="border-t border-border/50 py-3 px-4 text-center bg-card/50">
+            <span className="text-xs text-muted-foreground">
+              v{__APP_VERSION__}
+            </span>
+          </div>
         </div>
 
         {/* Keyboard Controls Overlay - Fixed to bottom of viewport */}
