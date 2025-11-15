@@ -1,4 +1,6 @@
 import ChessBoard3D from "@/components/ChessBoard3D";
+import { ColorPicker } from "@/components/ColorPicker";
+import { GradientPreview } from "@/components/GradientPreview";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -26,6 +28,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
 import { solveKnightsTour, type Position } from "@/lib/knightsTour";
+import { generateGradient } from "@/lib/gradientUtils";
 import {
   ChevronLeft,
   ChevronRight,
@@ -36,13 +39,15 @@ import {
   SkipBack,
   SkipForward,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 // Default view settings
 const DEFAULT_ZOOM = 1.2;
 const DEFAULT_VERTICAL_SPACING = 190;
 const DEFAULT_VERTICAL_OFFSET = 140;
 const DEFAULT_KNIGHT_SCALE = 0.8;
+const DEFAULT_GRADIENT_START = "#004f44"; // Dark teal
+const DEFAULT_GRADIENT_END = "#22a75e"; // Green
 
 // localStorage helpers
 const getStoredNumber = (key: string, defaultValue: number): number => {
@@ -79,15 +84,32 @@ const setStoredBoolean = (key: string, value: boolean) => {
   }
 };
 
+const getStoredString = (key: string, defaultValue: string): string => {
+  try {
+    const stored = localStorage.getItem(key);
+    return stored !== null ? stored : defaultValue;
+  } catch {
+    return defaultValue;
+  }
+};
+
+const setStoredString = (key: string, value: string) => {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // Ignore storage errors
+  }
+};
+
 export default function Home() {
   const [layers, setLayers] = useState(3);
   const boardSize = 8; // Fixed board size
-  const [startPos, setStartPos] = useState<Position>({ x: 0, y: 0, layer: 0 });
+  const [startPos, setStartPos] = useState<Position>({ x: 7, y: 7, layer: 0 });
   const [currentPath, setCurrentPath] = useState<Position[]>([]);
   const [visitedSquares, setVisitedSquares] = useState<Position[]>([]);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
-  const [speed, setSpeed] = useState(1);
+  const [speed, setSpeed] = useState(3);
   const [currentStep, setCurrentStep] = useState(0);
   const [solution, setSolution] = useState<Position[]>([]);
   const [stats, setStats] = useState({
@@ -110,11 +132,30 @@ export default function Home() {
   const [knightScale, setKnightScale] = useState(() =>
     getStoredNumber("kt3d_knightScale", DEFAULT_KNIGHT_SCALE)
   );
+  const [gradientStart, setGradientStart] = useState(() =>
+    getStoredString("kt3d_gradientStart", DEFAULT_GRADIENT_START)
+  );
+  const [gradientEnd, setGradientEnd] = useState(() =>
+    getStoredString("kt3d_gradientEnd", DEFAULT_GRADIENT_END)
+  );
 
   const animationRef = useRef<number | undefined>(undefined);
   const lastUpdateRef = useRef<number>(0);
 
   const totalSquares = boardSize * boardSize * layers;
+
+  // Generate gradient preview for UI
+  // Shows a preview of the color gradient that will be used for the tour
+  const gradientPreview = useMemo(() => {
+    try {
+      // Generate preview with reasonable number of steps (30 for smooth preview)
+      return generateGradient(gradientStart, gradientEnd, 30);
+    } catch (error) {
+      console.error("Failed to generate gradient preview:", error);
+      // Fallback to default colors (#004f44 -> #22a75e)
+      return generateGradient(DEFAULT_GRADIENT_START, DEFAULT_GRADIENT_END, 30);
+    }
+  }, [gradientStart, gradientEnd]);
 
   const resetTour = () => {
     setIsPlaying(false);
@@ -183,6 +224,14 @@ export default function Home() {
   useEffect(() => {
     setStoredNumber("kt3d_knightScale", knightScale);
   }, [knightScale]);
+
+  useEffect(() => {
+    setStoredString("kt3d_gradientStart", gradientStart);
+  }, [gradientStart]);
+
+  useEffect(() => {
+    setStoredString("kt3d_gradientEnd", gradientEnd);
+  }, [gradientEnd]);
 
   // Animation loop
   useEffect(() => {
@@ -385,6 +434,8 @@ export default function Home() {
             verticalSpacing={verticalSpacing}
             verticalOffset={verticalOffset}
             knightScale={knightScale}
+            gradientStart={gradientStart}
+            gradientEnd={gradientEnd}
           />
         </div>
 
@@ -552,6 +603,8 @@ export default function Home() {
                       setVerticalSpacing(DEFAULT_VERTICAL_SPACING);
                       setVerticalOffset(DEFAULT_VERTICAL_OFFSET);
                       setKnightScale(DEFAULT_KNIGHT_SCALE);
+                      setGradientStart(DEFAULT_GRADIENT_START);
+                      setGradientEnd(DEFAULT_GRADIENT_END);
                     }}
                   >
                     Reset to Defaults
@@ -672,6 +725,34 @@ export default function Home() {
                       step={0.1}
                       value={[knightScale]}
                       onValueChange={([value]) => setKnightScale(value)}
+                    />
+                  </div>
+
+                  {/* Tour Colors */}
+                  <div className="space-y-3">
+                    <Label className="text-base font-semibold">Tour Colors</Label>
+
+                    {/* Gradient Preview */}
+                    <GradientPreview
+                      gradient={gradientPreview}
+                      height={32}
+                      className="mb-2"
+                    />
+
+                    {/* Start Color Picker */}
+                    <ColorPicker
+                      label="Gradient Start"
+                      value={gradientStart}
+                      onChange={setGradientStart}
+                      id="gradient-start"
+                    />
+
+                    {/* End Color Picker */}
+                    <ColorPicker
+                      label="Gradient End"
+                      value={gradientEnd}
+                      onChange={setGradientEnd}
+                      id="gradient-end"
                     />
                   </div>
                 </CardContent>

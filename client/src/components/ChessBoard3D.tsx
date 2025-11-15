@@ -1,4 +1,5 @@
-import { useRef } from "react";
+import { useRef, useMemo } from "react";
+import { generateGradient, getGradientColor } from "@/lib/gradientUtils";
 
 interface Position {
   x: number;
@@ -16,6 +17,8 @@ interface ChessBoard3DProps {
   verticalSpacing?: number;
   verticalOffset?: number;
   knightScale?: number;
+  gradientStart?: string;
+  gradientEnd?: string;
 }
 
 export default function ChessBoard3D({
@@ -28,8 +31,25 @@ export default function ChessBoard3D({
   verticalSpacing = 120,
   verticalOffset = 0,
   knightScale = 2.4,
+  gradientStart = "#004f44",
+  gradientEnd = "#22a75e",
 }: ChessBoard3DProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Generate gradient colors for the path
+  // Memoized to only recalculate when gradient settings or path length changes
+  const pathGradient = useMemo(() => {
+    try {
+      // Generate gradient based on path length (number of steps in the tour)
+      // If path is empty, generate at least 2 colors for preview purposes
+      const steps = Math.max(path.length, 2);
+      return generateGradient(gradientStart, gradientEnd, steps);
+    } catch (error) {
+      // Fallback to default gradient if color parsing fails (#004f44 -> #22a75e)
+      console.error("Failed to generate gradient:", error);
+      return generateGradient("#004f44", "#22a75e", Math.max(path.length, 2));
+    }
+  }, [gradientStart, gradientEnd, path.length]);
 
   // Fixed orientation for top-down isometric view (matching reference image)
   const rotationX = 60; // More top-down angle
@@ -197,12 +217,17 @@ export default function ChessBoard3D({
                         actualLayer
                       );
 
+                      // Get gradient color for visited squares based on path index
+                      const gradientColor = visited && pathIdx >= 0
+                        ? getGradientColor(pathGradient, pathIdx)
+                        : null;
+
                       return (
                         <div
                           key={`${x}-${y}`}
                           className={`absolute border flex items-center justify-center text-xs font-semibold transition-all duration-200 ${
                             visited
-                              ? "bg-primary border-primary shadow-lg shadow-primary/50"
+                              ? "border-border/50"
                               : (x + y) % 2 === 0
                                 ? "bg-primary/20 border-border/30"
                                 : "bg-primary/40 border-border/30"
@@ -213,6 +238,8 @@ export default function ChessBoard3D({
                             left: `${x * cellSize}px`,
                             top: `${y * cellSize}px`,
                             opacity: isTransparent ? 0.25 : 1,
+                            backgroundColor: gradientColor || undefined,
+                            boxShadow: gradientColor ? `0 4px 6px -1px ${gradientColor}40, 0 2px 4px -1px ${gradientColor}30` : undefined,
                           }}
                         >
                           {/* Path number */}
