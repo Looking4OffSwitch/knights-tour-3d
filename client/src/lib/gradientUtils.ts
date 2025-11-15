@@ -13,10 +13,10 @@
  * @returns true if valid hex color, false otherwise
  */
 export function isValidHexColor(color: string): boolean {
-  if (!color || typeof color !== 'string') return false;
+  if (!color || typeof color !== "string") return false;
 
   // Remove # if present
-  const hex = color.startsWith('#') ? color.slice(1) : color;
+  const hex = color.startsWith("#") ? color.slice(1) : color;
 
   // Valid formats: RGB or RRGGBB
   return /^[0-9A-Fa-f]{3}$|^[0-9A-Fa-f]{6}$/.test(hex);
@@ -35,11 +35,14 @@ export function normalizeHexColor(color: string): string {
     throw new Error(`Invalid hex color format: ${color}`);
   }
 
-  const hex = color.startsWith('#') ? color.slice(1) : color;
+  const hex = color.startsWith("#") ? color.slice(1) : color;
 
   // Expand short format #RGB to #RRGGBB
   if (hex.length === 3) {
-    const expanded = hex.split('').map(char => char + char).join('');
+    const expanded = hex
+      .split("")
+      .map(char => char + char)
+      .join("");
     return `#${expanded}`;
   }
 
@@ -80,7 +83,9 @@ export function hexToRgb(hex: string): { r: number; g: number; b: number } {
 export function rgbToHex(r: number, g: number, b: number): string {
   // Validate RGB values
   if (r < 0 || r > 255 || g < 0 || g > 255 || b < 0 || b > 255) {
-    throw new Error(`RGB values must be between 0-255. Got: r=${r}, g=${g}, b=${b}`);
+    throw new Error(
+      `RGB values must be between 0-255. Got: r=${r}, g=${g}, b=${b}`
+    );
   }
 
   // Round and convert to integers
@@ -89,9 +94,9 @@ export function rgbToHex(r: number, g: number, b: number): string {
   const bInt = Math.round(b);
 
   // Convert to hex with zero padding
-  const rHex = rInt.toString(16).padStart(2, '0');
-  const gHex = gInt.toString(16).padStart(2, '0');
-  const bHex = bInt.toString(16).padStart(2, '0');
+  const rHex = rInt.toString(16).padStart(2, "0");
+  const gHex = gInt.toString(16).padStart(2, "0");
+  const bHex = bInt.toString(16).padStart(2, "0");
 
   return `#${rHex}${gHex}${bHex}`;
 }
@@ -192,14 +197,17 @@ export function generateGradient(
 export function getGradientColor(
   gradient: string[],
   index: number,
-  fallback: string = '#808080'
+  fallback: string = "#808080"
 ): string {
   if (!gradient || gradient.length === 0) {
     return fallback;
   }
 
   // Clamp index to valid range
-  const clampedIndex = Math.max(0, Math.min(gradient.length - 1, Math.floor(index)));
+  const clampedIndex = Math.max(
+    0,
+    Math.min(gradient.length - 1, Math.floor(index))
+  );
 
   return gradient[clampedIndex];
 }

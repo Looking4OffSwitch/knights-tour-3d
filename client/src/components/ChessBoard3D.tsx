@@ -226,9 +226,10 @@ export default function ChessBoard3D({
                       );
 
                       // Get gradient color for visited squares based on path index
-                      const gradientColor = visited && pathIdx >= 0
-                        ? getGradientColor(pathGradient, pathIdx)
-                        : null;
+                      const gradientColor =
+                        visited && pathIdx >= 0
+                          ? getGradientColor(pathGradient, pathIdx)
+                          : null;
 
                       // Determine border color: amber for occluding squares, normal otherwise
                       const borderColor = occlusionState.isOccluding
@@ -255,7 +256,9 @@ export default function ChessBoard3D({
                             // Apply semi-transparency to occluding squares (0.2 = 20% opacity)
                             opacity: occlusionState.isOccluding ? 0.2 : 1,
                             backgroundColor: gradientColor || undefined,
-                            boxShadow: gradientColor ? `0 4px 6px -1px ${gradientColor}40, 0 2px 4px -1px ${gradientColor}30` : undefined,
+                            boxShadow: gradientColor
+                              ? `0 4px 6px -1px ${gradientColor}40, 0 2px 4px -1px ${gradientColor}30`
+                              : undefined,
                           }}
                         >
                           {/* Path number */}
@@ -274,13 +277,21 @@ export default function ChessBoard3D({
                                 top: "50%",
                                 fontSize: `${cellSize * knightScale}px`,
                                 lineHeight: 0,
-                                transform: "translate(-50%, -50%) translateZ(15px)",
+                                transform:
+                                  "translate(-50%, -50%) translateZ(15px)",
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "center",
                               }}
                             >
-                              <span style={{ display: "inline-block", verticalAlign: "middle" }}>♞</span>
+                              <span
+                                style={{
+                                  display: "inline-block",
+                                  verticalAlign: "middle",
+                                }}
+                              >
+                                ♞
+                              </span>
                             </div>
                           )}
                         </div>

@@ -40,7 +40,8 @@ export function ColorPicker({
   className = "",
 }: ColorPickerProps) {
   // Generate unique ID if not provided
-  const inputId = id || `color-picker-${label.toLowerCase().replace(/\s+/g, "-")}`;
+  const inputId =
+    id || `color-picker-${label.toLowerCase().replace(/\s+/g, "-")}`;
 
   // Local state for hex input to allow typing without immediate validation
   const [hexInput, setHexInput] = useState<string>("");

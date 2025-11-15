@@ -315,18 +315,38 @@ export default function Home() {
       } else if (e.code === "Enter") {
         e.preventDefault();
         resetTour();
-      } else if (e.code === "ArrowLeft") {
-        e.preventDefault();
-        setSpeed(prev => Math.max(1, prev - 1));
-      } else if (e.code === "ArrowRight") {
+      } else if (e.code === "ArrowUp") {
         e.preventDefault();
         setSpeed(prev => Math.min(10, prev + 1));
+      } else if (e.code === "ArrowDown") {
+        e.preventDefault();
+        setSpeed(prev => Math.max(1, prev - 1));
+      } else if (e.code === "ArrowLeft") {
+        e.preventDefault();
+        // If tour is running, pause it first
+        if (isPlaying && !isPaused) {
+          setIsPaused(true);
+        }
+        // Step backward if we have a solution
+        if (solution.length > 0) {
+          stepBackward();
+        }
+      } else if (e.code === "ArrowRight") {
+        e.preventDefault();
+        // If tour is running, pause it first
+        if (isPlaying && !isPaused) {
+          setIsPaused(true);
+        }
+        // Step forward if we have a solution
+        if (solution.length > 0) {
+          stepForward();
+        }
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isPlaying]);
+  }, [isPlaying, isPaused, solution.length]);
 
   // Show knight at starting position when not running
   useEffect(() => {
@@ -440,7 +460,7 @@ export default function Home() {
       {/* Main Content */}
       <div className="flex-1 flex relative">
         {/* Visualization Pane */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col relative">
           <ChessBoard3D
             layers={layers}
             boardSize={boardSize}
@@ -461,7 +481,7 @@ export default function Home() {
         {/* Collapse Button - Always Visible */}
         <button
           onClick={() => setControlPanelOpen(!controlPanelOpen)}
-          className="absolute right-0 top-1/2 -translate-y-1/2 z-50 bg-card border border-border rounded-l-lg p-2 hover:bg-accent transition-colors shadow-lg"
+          className="fixed top-1/2 -translate-y-1/2 z-50 bg-card border border-border rounded-l-lg p-2 hover:bg-accent transition-colors shadow-lg"
           style={{ right: controlPanelOpen ? "384px" : "0" }}
         >
           {controlPanelOpen ? (
@@ -484,377 +504,423 @@ export default function Home() {
                 <CardTitle className="text-lg">Controls</CardTitle>
               </CardHeader>
               <CardContent className="pt-2 space-y-4">
-                  <Separator className="-mt-8 mb-2" />
+                <Separator className="-mt-8 mb-2" />
 
-                  {/* Zoom */}
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <Label htmlFor="zoom">Zoom</Label>
-                      <span className="text-xs text-muted-foreground">
-                        {zoom.toFixed(1)}x
-                      </span>
-                    </div>
-                    <Slider
-                      id="zoom"
-                      min={0.5}
-                      max={2.0}
-                      step={0.1}
-                      value={[zoom]}
-                      onValueChange={value => setZoom(value[0])}
-                      onKeyDown={e => {
-                        if (e.key === "ArrowUp" || e.key === "ArrowDown") {
-                          e.preventDefault();
-                        }
-                      }}
-                    />
+                {/* Zoom */}
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <Label htmlFor="zoom">Zoom</Label>
+                    <span className="text-xs text-muted-foreground">
+                      {zoom.toFixed(1)}x
+                    </span>
                   </div>
-
-                  {/* Vertical Spacing */}
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <Label htmlFor="vertical-spacing">Vertical Spacing</Label>
-                      <span className="text-xs text-muted-foreground">
-                        {verticalSpacing}px
-                      </span>
-                    </div>
-                    <Slider
-                      id="vertical-spacing"
-                      min={80}
-                      max={250}
-                      step={10}
-                      value={[verticalSpacing]}
-                      onValueChange={value => setVerticalSpacing(value[0])}
-                      onKeyDown={e => {
-                        if (e.key === "ArrowUp" || e.key === "ArrowDown") {
-                          e.preventDefault();
-                        }
-                      }}
-                    />
-                  </div>
-
-                  {/* Vertical Position */}
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <Label htmlFor="vertical-position">
-                        Vertical Position
-                      </Label>
-                      <span className="text-xs text-muted-foreground">
-                        {verticalOffset}px
-                      </span>
-                    </div>
-                    <Slider
-                      id="vertical-position"
-                      min={-100}
-                      max={300}
-                      step={10}
-                      value={[verticalOffset]}
-                      onValueChange={value => setVerticalOffset(value[0])}
-                      onKeyDown={e => {
-                        if (e.key === "ArrowUp" || e.key === "ArrowDown") {
-                          e.preventDefault();
-                        }
-                      }}
-                    />
-                  </div>
-
-                  <Separator />
-
-                  {/* Animation Speed */}
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <Label htmlFor="speed">Animation Speed</Label>
-                      <span className="text-xs text-muted-foreground">
-                        {speed} steps/s
-                      </span>
-                    </div>
-                    <Slider
-                      id="speed"
-                      min={1}
-                      max={10}
-                      step={1}
-                      value={[speed]}
-                      onValueChange={value => setSpeed(value[0])}
-                      onKeyDown={e => {
-                        if (e.key === "ArrowUp" || e.key === "ArrowDown") {
-                          e.preventDefault();
-                        }
-                      }}
-                    />
-                  </div>
-
-                  {/* Control Buttons */}
-                  <div className="space-y-2">
-                    <Label>Tour Controls</Label>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={
-                          isPlaying ? () => setIsPaused(!isPaused) : startTour
-                        }
-                        className="flex-1 h-12 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md inline-flex items-center justify-center gap-2 transition-colors font-medium"
-                      >
-                        {isPlaying ? (
-                          <>
-                            <Pause className="h-5 w-5" />
-                            {isPaused ? "Resume" : "Pause"}
-                          </>
-                        ) : (
-                          <>
-                            <Play className="h-5 w-5" />
-                            Start
-                          </>
-                        )}
-                      </button>
-                      <button
-                        onClick={resetTour}
-                        className="h-12 px-4 border border-border bg-transparent hover:bg-accent rounded-md inline-flex items-center justify-center transition-colors"
-                      >
-                        <RotateCcw className="h-5 w-5" />
-                      </button>
-                    </div>
-
-                    {/* Manual Step Controls - always visible when solution exists */}
-                    {solution.length > 0 && (
-                      <div className="space-y-2 pt-2">
-                        <div className="flex items-center justify-between">
-                          <Label className="text-xs text-muted-foreground">
-                            Step {currentStep + 1} of {solution.length}
-                          </Label>
-                        </div>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={stepBackward}
-                            disabled={currentStep === 0 || (isPlaying && !isPaused)}
-                            className="flex-1 h-10 border border-border bg-transparent hover:bg-accent rounded-md inline-flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            aria-label="Previous step"
-                          >
-                            <ChevronLeft className="h-4 w-4" />
-                            <span className="text-sm">Previous</span>
-                          </button>
-                          <button
-                            onClick={stepForward}
-                            disabled={currentStep >= solution.length - 1 || (isPlaying && !isPaused)}
-                            className="flex-1 h-10 border border-border bg-transparent hover:bg-accent rounded-md inline-flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            aria-label="Next step"
-                          >
-                            <span className="text-sm">Next</span>
-                            <ChevronRight className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Reset Button */}
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => {
-                      setZoom(DEFAULT_ZOOM);
-                      setVerticalSpacing(DEFAULT_VERTICAL_SPACING);
-                      setVerticalOffset(DEFAULT_VERTICAL_OFFSET);
-                      setKnightScale(DEFAULT_KNIGHT_SCALE);
-                      setGradientStart(DEFAULT_GRADIENT_START);
-                      setGradientEnd(DEFAULT_GRADIENT_END);
-                      setOcclusionZoneRadius(DEFAULT_OCCLUSION_ZONE_RADIUS);
-                      setOcclusionEnabled(DEFAULT_OCCLUSION_ENABLED);
+                  <Slider
+                    id="zoom"
+                    min={0.5}
+                    max={2.0}
+                    step={0.1}
+                    value={[zoom]}
+                    onValueChange={value => setZoom(value[0])}
+                    onKeyDown={e => {
+                      if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+                        e.preventDefault();
+                      }
                     }}
-                  >
-                    Reset to Defaults
-                  </Button>
+                  />
+                </div>
 
-                  <Separator />
+                {/* Vertical Spacing */}
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <Label htmlFor="vertical-spacing">Vertical Spacing</Label>
+                    <span className="text-xs text-muted-foreground">
+                      {verticalSpacing}px
+                    </span>
+                  </div>
+                  <Slider
+                    id="vertical-spacing"
+                    min={80}
+                    max={250}
+                    step={10}
+                    value={[verticalSpacing]}
+                    onValueChange={value => setVerticalSpacing(value[0])}
+                    onKeyDown={e => {
+                      if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+                        e.preventDefault();
+                      }
+                    }}
+                  />
+                </div>
 
-                  {/* Layers */}
-                  <div className="space-y-2">
-                    <Label htmlFor="layers">Number of Layers</Label>
-                    <Select
-                      value={layers.toString()}
-                      onValueChange={value => {
-                        setLayers(parseInt(value));
-                        resetTour();
-                      }}
-                      disabled={isPlaying}
+                {/* Vertical Position */}
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <Label htmlFor="vertical-position">Vertical Position</Label>
+                    <span className="text-xs text-muted-foreground">
+                      {verticalOffset}px
+                    </span>
+                  </div>
+                  <Slider
+                    id="vertical-position"
+                    min={-100}
+                    max={300}
+                    step={10}
+                    value={[verticalOffset]}
+                    onValueChange={value => setVerticalOffset(value[0])}
+                    onKeyDown={e => {
+                      if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+                        e.preventDefault();
+                      }
+                    }}
+                  />
+                </div>
+
+                <Separator />
+
+                {/* Animation Speed */}
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <Label htmlFor="speed">Animation Speed</Label>
+                    <span className="text-xs text-muted-foreground">
+                      {speed} steps/s
+                    </span>
+                  </div>
+                  <Slider
+                    id="speed"
+                    min={1}
+                    max={10}
+                    step={1}
+                    value={[speed]}
+                    onValueChange={value => setSpeed(value[0])}
+                    onKeyDown={e => {
+                      if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+                        e.preventDefault();
+                      }
+                    }}
+                  />
+                </div>
+
+                {/* Control Buttons */}
+                <div className="space-y-2">
+                  <Label>Tour Controls</Label>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={
+                        isPlaying ? () => setIsPaused(!isPaused) : startTour
+                      }
+                      className="flex-1 h-12 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md inline-flex items-center justify-center gap-2 transition-colors font-medium"
                     >
-                      <SelectTrigger id="layers">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="1">1 Layer (2D)</SelectItem>
-                        <SelectItem value="2">2 Layers</SelectItem>
-                        <SelectItem value="3">3 Layers</SelectItem>
-                      </SelectContent>
-                    </Select>
+                      {isPlaying ? (
+                        <>
+                          <Pause className="h-5 w-5" />
+                          {isPaused ? "Resume" : "Pause"}
+                        </>
+                      ) : (
+                        <>
+                          <Play className="h-5 w-5" />
+                          Start
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={resetTour}
+                      className="h-12 px-4 border border-border bg-transparent hover:bg-accent rounded-md inline-flex items-center justify-center transition-colors"
+                    >
+                      <RotateCcw className="h-5 w-5" />
+                    </button>
                   </div>
 
-                  {/* Starting Position */}
-                  <div className="space-y-2">
-                    <Label>Starting Position</Label>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className="space-y-1">
-                        <Label htmlFor="start-x" className="text-xs">
-                          X
+                  {/* Manual Step Controls - always visible when solution exists */}
+                  {solution.length > 0 && (
+                    <div className="space-y-2 pt-2">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs text-muted-foreground">
+                          Step {currentStep + 1} of {solution.length}
                         </Label>
-                        <Select
-                          value={startPos.x.toString()}
-                          onValueChange={value =>
-                            setStartPos({ ...startPos, x: parseInt(value) })
-                          }
-                          disabled={isPlaying}
-                        >
-                          <SelectTrigger id="start-x">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {Array.from({ length: boardSize }, (_, i) => (
-                              <SelectItem key={i} value={i.toString()}>
-                                {i}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
                       </div>
-                      <div className="space-y-1">
-                        <Label htmlFor="start-y" className="text-xs">
-                          Y
-                        </Label>
-                        <Select
-                          value={startPos.y.toString()}
-                          onValueChange={value =>
-                            setStartPos({ ...startPos, y: parseInt(value) })
+                      <div className="flex gap-2">
+                        <button
+                          onClick={stepBackward}
+                          disabled={
+                            currentStep === 0 || (isPlaying && !isPaused)
                           }
-                          disabled={isPlaying}
+                          className="flex-1 h-10 border border-border bg-transparent hover:bg-accent rounded-md inline-flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          aria-label="Previous step"
                         >
-                          <SelectTrigger id="start-y">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {Array.from({ length: boardSize }, (_, i) => (
-                              <SelectItem key={i} value={i.toString()}>
-                                {i}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-1">
-                        <Label htmlFor="start-layer" className="text-xs">
-                          Layer
-                        </Label>
-                        <Select
-                          value={startPos.layer.toString()}
-                          onValueChange={value =>
-                            setStartPos({ ...startPos, layer: parseInt(value) })
+                          <ChevronLeft className="h-4 w-4" />
+                          <span className="text-sm">Previous</span>
+                        </button>
+                        <button
+                          onClick={stepForward}
+                          disabled={
+                            currentStep >= solution.length - 1 ||
+                            (isPlaying && !isPaused)
                           }
-                          disabled={isPlaying}
+                          className="flex-1 h-10 border border-border bg-transparent hover:bg-accent rounded-md inline-flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          aria-label="Next step"
                         >
-                          <SelectTrigger id="start-layer">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {Array.from({ length: layers }, (_, i) => (
-                              <SelectItem key={i} value={i.toString()}>
-                                {i}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          <span className="text-sm">Next</span>
+                          <ChevronRight className="h-4 w-4" />
+                        </button>
                       </div>
                     </div>
-                  </div>
+                  )}
+                </div>
 
-                  {/* Knight Scale */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="knight-scale">Knight Scale</Label>
-                      <span className="text-sm text-muted-foreground">
-                        {knightScale.toFixed(1)}x
-                      </span>
-                    </div>
-                    <Slider
-                      id="knight-scale"
-                      min={0.5}
-                      max={5}
-                      step={0.1}
-                      value={[knightScale]}
-                      onValueChange={([value]) => setKnightScale(value)}
-                    />
-                  </div>
+                {/* Reset Button */}
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => {
+                    setZoom(DEFAULT_ZOOM);
+                    setVerticalSpacing(DEFAULT_VERTICAL_SPACING);
+                    setVerticalOffset(DEFAULT_VERTICAL_OFFSET);
+                    setKnightScale(DEFAULT_KNIGHT_SCALE);
+                    setGradientStart(DEFAULT_GRADIENT_START);
+                    setGradientEnd(DEFAULT_GRADIENT_END);
+                    setOcclusionZoneRadius(DEFAULT_OCCLUSION_ZONE_RADIUS);
+                    setOcclusionEnabled(DEFAULT_OCCLUSION_ENABLED);
+                  }}
+                >
+                  Reset to Defaults
+                </Button>
 
-                  {/* Tour Colors */}
-                  <div className="space-y-3">
-                    <Label className="text-base font-semibold">Tour Colors</Label>
+                <Separator />
 
-                    {/* Gradient Preview */}
-                    <GradientPreview
-                      gradient={gradientPreview}
-                      height={32}
-                      className="mb-2"
-                    />
+                {/* Layers */}
+                <div className="space-y-2">
+                  <Label htmlFor="layers">Number of Layers</Label>
+                  <Select
+                    value={layers.toString()}
+                    onValueChange={value => {
+                      setLayers(parseInt(value));
+                      resetTour();
+                    }}
+                    disabled={isPlaying}
+                  >
+                    <SelectTrigger id="layers">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">1 Layer (2D)</SelectItem>
+                      <SelectItem value="2">2 Layers</SelectItem>
+                      <SelectItem value="3">3 Layers</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-                    {/* Start Color Picker */}
-                    <ColorPicker
-                      label="Gradient Start"
-                      value={gradientStart}
-                      onChange={setGradientStart}
-                      id="gradient-start"
-                    />
-
-                    {/* End Color Picker */}
-                    <ColorPicker
-                      label="Gradient End"
-                      value={gradientEnd}
-                      onChange={setGradientEnd}
-                      id="gradient-end"
-                    />
-                  </div>
-
-                  {/* Occlusion System */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="occlusion-enabled" className="text-sm">
-                        Knight Visibility System
+                {/* Starting Position */}
+                <div className="space-y-2">
+                  <Label>Starting Position</Label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="space-y-1">
+                      <Label htmlFor="start-x" className="text-xs">
+                        X
                       </Label>
-                      <Switch
-                        id="occlusion-enabled"
-                        checked={occlusionEnabled}
-                        onCheckedChange={setOcclusionEnabled}
-                      />
+                      <Select
+                        value={startPos.x.toString()}
+                        onValueChange={value =>
+                          setStartPos({ ...startPos, x: parseInt(value) })
+                        }
+                        disabled={isPlaying}
+                      >
+                        <SelectTrigger id="start-x">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Array.from({ length: boardSize }, (_, i) => (
+                            <SelectItem key={i} value={i.toString()}>
+                              {i}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      Makes squares transparent when the knight is hidden behind upper layers.
-                    </p>
-
-                    {/* Occlusion Zone Size - only show when enabled */}
-                    {occlusionEnabled && (
-                      <div className="space-y-2 pt-2">
-                        <div className="flex items-center justify-between">
-                          <Label htmlFor="occlusion-zone" className="text-xs">
-                            Zone Size
-                          </Label>
-                          <span className="text-xs text-muted-foreground">
-                            {occlusionZoneRadius === 0 && "1×1"}
-                            {occlusionZoneRadius === 1 && "3×3"}
-                            {occlusionZoneRadius === 2 && "5×5"}
-                            {occlusionZoneRadius === 3 && "7×7"}
-                            {occlusionZoneRadius === 4 && "9×9"}
-                          </span>
-                        </div>
-                        <Slider
-                          id="occlusion-zone"
-                          min={0}
-                          max={4}
-                          step={1}
-                          value={[occlusionZoneRadius]}
-                          onValueChange={([value]) => setOcclusionZoneRadius(value)}
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          Size of transparent area above knight. Larger values make it easier to see the knight.
-                        </p>
-                      </div>
-                    )}
+                    <div className="space-y-1">
+                      <Label htmlFor="start-y" className="text-xs">
+                        Y
+                      </Label>
+                      <Select
+                        value={startPos.y.toString()}
+                        onValueChange={value =>
+                          setStartPos({ ...startPos, y: parseInt(value) })
+                        }
+                        disabled={isPlaying}
+                      >
+                        <SelectTrigger id="start-y">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Array.from({ length: boardSize }, (_, i) => (
+                            <SelectItem key={i} value={i.toString()}>
+                              {i}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="start-layer" className="text-xs">
+                        Layer
+                      </Label>
+                      <Select
+                        value={startPos.layer.toString()}
+                        onValueChange={value =>
+                          setStartPos({ ...startPos, layer: parseInt(value) })
+                        }
+                        disabled={isPlaying}
+                      >
+                        <SelectTrigger id="start-layer">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Array.from({ length: layers }, (_, i) => (
+                            <SelectItem key={i} value={i.toString()}>
+                              {i}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
-                </CardContent>
+                </div>
+
+                {/* Knight Scale */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="knight-scale">Knight Scale</Label>
+                    <span className="text-sm text-muted-foreground">
+                      {knightScale.toFixed(1)}x
+                    </span>
+                  </div>
+                  <Slider
+                    id="knight-scale"
+                    min={0.5}
+                    max={5}
+                    step={0.1}
+                    value={[knightScale]}
+                    onValueChange={([value]) => setKnightScale(value)}
+                  />
+                </div>
+
+                {/* Tour Colors */}
+                <div className="space-y-3">
+                  <Label className="text-base font-semibold">Tour Colors</Label>
+
+                  {/* Gradient Preview */}
+                  <GradientPreview
+                    gradient={gradientPreview}
+                    height={32}
+                    className="mb-2"
+                  />
+
+                  {/* Start Color Picker */}
+                  <ColorPicker
+                    label="Gradient Start"
+                    value={gradientStart}
+                    onChange={setGradientStart}
+                    id="gradient-start"
+                  />
+
+                  {/* End Color Picker */}
+                  <ColorPicker
+                    label="Gradient End"
+                    value={gradientEnd}
+                    onChange={setGradientEnd}
+                    id="gradient-end"
+                  />
+                </div>
+
+                {/* Occlusion System */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="occlusion-enabled" className="text-sm">
+                      Knight Visibility System
+                    </Label>
+                    <Switch
+                      id="occlusion-enabled"
+                      checked={occlusionEnabled}
+                      onCheckedChange={setOcclusionEnabled}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Makes squares transparent when the knight is hidden behind
+                    upper layers.
+                  </p>
+
+                  {/* Occlusion Zone Size - only show when enabled */}
+                  {occlusionEnabled && (
+                    <div className="space-y-2 pt-2">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="occlusion-zone" className="text-xs">
+                          Zone Size
+                        </Label>
+                        <span className="text-xs text-muted-foreground">
+                          {occlusionZoneRadius === 0 && "1×1"}
+                          {occlusionZoneRadius === 1 && "3×3"}
+                          {occlusionZoneRadius === 2 && "5×5"}
+                          {occlusionZoneRadius === 3 && "7×7"}
+                          {occlusionZoneRadius === 4 && "9×9"}
+                        </span>
+                      </div>
+                      <Slider
+                        id="occlusion-zone"
+                        min={0}
+                        max={4}
+                        step={1}
+                        value={[occlusionZoneRadius]}
+                        onValueChange={([value]) =>
+                          setOcclusionZoneRadius(value)
+                        }
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Size of transparent area above knight. Larger values
+                        make it easier to see the knight.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
             </Card>
+          </div>
+        </div>
+
+        {/* Keyboard Controls Overlay - Fixed to bottom of viewport */}
+        <div className="fixed bottom-6 left-6 bg-card/90 backdrop-blur-sm border border-border rounded-lg p-4 shadow-lg z-40">
+          <h3 className="text-sm font-semibold mb-3 text-foreground">
+            Keyboard Controls
+          </h3>
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <kbd className="px-2 py-1 text-xs font-semibold bg-muted border border-border rounded min-w-[60px] text-center">
+                Space
+              </kbd>
+              <span className="text-xs text-muted-foreground">
+                {isPlaying ? "Pause/Resume" : "Start Tour"}
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              <kbd className="px-2 py-1 text-xs font-semibold bg-muted border border-border rounded min-w-[60px] text-center">
+                Enter
+              </kbd>
+              <span className="text-xs text-muted-foreground">Reset Tour</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <kbd className="px-2 py-1 text-xs font-semibold bg-muted border border-border rounded min-w-[60px] text-center">
+                ↑ ↓
+              </kbd>
+              <span className="text-xs text-muted-foreground">
+                Adjust Speed ({speed} steps/s)
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              <kbd className="px-2 py-1 text-xs font-semibold bg-muted border border-border rounded min-w-[60px] text-center">
+                ← →
+              </kbd>
+              <span className="text-xs text-muted-foreground">
+                Step Through Tour
+              </span>
+            </div>
           </div>
         </div>
       </div>

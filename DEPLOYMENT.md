@@ -14,8 +14,8 @@ This project requires **Corepack** to be enabled in Vercel to use pnpm 10.x.
 
 In your Vercel Project Settings (`Settings → Environment Variables`), add:
 
-| Key                           | Value | Description                                      |
-| ----------------------------- | ----- | ------------------------------------------------ |
+| Key                            | Value | Description                                         |
+| ------------------------------ | ----- | --------------------------------------------------- |
 | `ENABLE_EXPERIMENTAL_COREPACK` | `1`   | Enables Corepack to use pnpm 10.x from package.json |
 
 Apply this to all environments (Production, Preview, Development).
@@ -32,10 +32,10 @@ pnpm preview      # smoke-test the built client
 
 ## 4. Installing pnpm
 
-| Platform | Command                                              | Notes                                                                     |
-| -------- | ---------------------------------------------------- | ------------------------------------------------------------------------- |
-| Windows  | `iwr https://get.pnpm.io/install.ps1 -useb \| iex`  | Run in PowerShell; re-open the terminal so the pnpm shim loads.          |
-| macOS    | `curl -fsSL https://get.pnpm.io/install.sh \| sh -` | Works with zsh/bash; restart the shell to update `PATH`.                 |
+| Platform | Command                                             | Notes                                                                     |
+| -------- | --------------------------------------------------- | ------------------------------------------------------------------------- |
+| Windows  | `iwr https://get.pnpm.io/install.ps1 -useb \| iex`  | Run in PowerShell; re-open the terminal so the pnpm shim loads.           |
+| macOS    | `curl -fsSL https://get.pnpm.io/install.sh \| sh -` | Works with zsh/bash; restart the shell to update `PATH`.                  |
 | Linux    | `curl -fsSL https://get.pnpm.io/install.sh \| sh -` | Compatible with major distros; ensure `~/.local/share/pnpm` is on `PATH`. |
 
 Verify with `pnpm -v`. Pin to the repo's expected major version (10+) to avoid lockfile churn.
