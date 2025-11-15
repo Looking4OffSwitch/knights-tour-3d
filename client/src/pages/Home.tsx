@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
 import { solveKnightsTour, type Position } from "@/lib/knightsTour";
 import {
@@ -43,7 +44,7 @@ import { useEffect, useRef, useState } from "react";
 const DEFAULT_ZOOM = 1.2;
 const DEFAULT_VERTICAL_SPACING = 190;
 const DEFAULT_VERTICAL_OFFSET = 140;
-const DEFAULT_KNIGHT_SCALE = 2.4;
+const DEFAULT_KNIGHT_SCALE = 0.8;
 
 // localStorage helpers
 const getStoredNumber = (key: string, defaultValue: number): number => {
@@ -114,7 +115,6 @@ export default function Home() {
   const [knightScale, setKnightScale] = useState(() =>
     getStoredNumber("kt3d_knightScale", DEFAULT_KNIGHT_SCALE)
   );
-  const [configurationOpen, setConfigurationOpen] = useState(false);
 
   const animationRef = useRef<number | undefined>(undefined);
   const lastUpdateRef = useRef<number>(0);
@@ -417,11 +417,11 @@ export default function Home() {
           } transition-all duration-300 border-l border-border/50 bg-card/30 backdrop-blur-sm overflow-hidden flex flex-col`}
         >
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
-            {/* View Controls */}
+            {/* Controls */}
             <Card>
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">View Controls</CardTitle>
+                  <CardTitle className="text-lg">Controls</CardTitle>
                   <Button
                     variant="ghost"
                     size="icon"
@@ -435,9 +435,6 @@ export default function Home() {
                     )}
                   </Button>
                 </div>
-                <CardDescription>
-                  Adjust 3D visualization appearance
-                </CardDescription>
               </CardHeader>
               {viewControlsVisible && (
                 <CardContent className="space-y-4">
@@ -512,6 +509,8 @@ export default function Home() {
                     />
                   </div>
 
+                  <Separator />
+
                   {/* Animation Speed */}
                   <div className="space-y-2">
                     <div className="flex justify-between">
@@ -574,40 +573,14 @@ export default function Home() {
                       setZoom(DEFAULT_ZOOM);
                       setVerticalSpacing(DEFAULT_VERTICAL_SPACING);
                       setVerticalOffset(DEFAULT_VERTICAL_OFFSET);
+                      setKnightScale(DEFAULT_KNIGHT_SCALE);
                     }}
                   >
                     Reset to Defaults
                   </Button>
-                </CardContent>
-              )}
-            </Card>
 
-            {/* Configuration */}
-            <Card>
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-lg">Configuration</CardTitle>
-                    <CardDescription>
-                      Set up the board and starting position
-                    </CardDescription>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => setConfigurationOpen(!configurationOpen)}
-                  >
-                    {configurationOpen ? (
-                      <ChevronRight className="h-4 w-4" />
-                    ) : (
-                      <ChevronLeft className="h-4 w-4" />
-                    )}
-                  </Button>
-                </div>
-              </CardHeader>
-              {configurationOpen && (
-                <CardContent className="space-y-4">
+                  <Separator />
+
                   {/* Layers */}
                   <div className="space-y-2">
                     <Label htmlFor="layers">Number of Layers</Label>
