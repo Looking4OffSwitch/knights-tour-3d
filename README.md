@@ -111,7 +111,7 @@ The knight's tour solver uses:
 
 ## Deployment
 
-See [DEPLOYMENT.md](./DEPLOYMENT.md) for Vercel deployment instructions, including Corepack configuration for pnpm 10.x support.
+- Coolify / VPS (containerized): [DEPLOYMENT-COOLIFY.md](./DEPLOYMENT-COOLIFY.md)
 
 ## License
 

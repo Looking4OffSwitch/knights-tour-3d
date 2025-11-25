@@ -1,0 +1,15 @@
+node_modules
+dist
+.git
+.gitignore
+*.log
+docs
+screenshots
+todo.md
+CLAUDE.md
+vercel.json
+start_server.sh
+*.local
+*.env
+npm-debug.log*
+pnpm-debug.log*
