@@ -1,4 +1,4 @@
-import { useEffect, useRef, useMemo, useCallback, useState } from "react";
+import { useEffect, useRef, useMemo } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   formatMoveList,
@@ -34,22 +34,11 @@ interface MoveListProps {
  * with layer prefixes (e.g., "1. L1:a1 → L1:c2").
  *
  * Features:
- * - Auto-scrolls to keep the current move visible when simulation is running
- * - Respects user manual scrolling - disables auto-scroll when user scrolls
- * - Re-enables auto-scroll when simulation restarts
+ * - Always auto-scrolls to keep the current move visible
  * - Highlights the current move being displayed
  * - Shows move count header
  * - Displays empty state when no moves available
- *
- * @example
- * <MoveList
- *   path={currentPath}
- *   boardSize={8}
- *   totalLayers={3}
- *   currentStep={5}
- *   isPlaying={true}
- *   maxHeight={300}
- * />
+ * - Click on a move to navigate (when paused)
  */
 export function MoveList({
   path,
@@ -60,35 +49,14 @@ export function MoveList({
   maxHeight = 280,
   onMoveClick,
 }: MoveListProps) {
-  // Reference to the scrollable viewport element
-  const scrollViewportRef = useRef<HTMLDivElement>(null);
   // Reference to the currently active move item for scroll-into-view
   const activeMoveRef = useRef<HTMLDivElement>(null);
-
-  /**
-   * Tracks whether auto-scroll is enabled.
-   * Disabled when user manually scrolls, re-enabled when simulation restarts.
-   */
-  const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
-
-  /**
-   * Tracks the previous path length to detect simulation restart.
-   * When path length decreases (reset) or goes to 0, we re-enable auto-scroll.
-   */
-  const prevPathLengthRef = useRef(0);
-
-  /**
-   * Tracks if we're currently performing a programmatic scroll.
-   * Used to distinguish between user scrolls and auto-scrolls.
-   */
-  const isProgrammaticScrollRef = useRef(false);
 
   /**
    * Memoized move list computation
    * Only recalculates when path, boardSize, or totalLayers change
    */
   const moves: ChessMove[] = useMemo(() => {
-    console.debug(`MoveList: computing moves for path length ${path.length}`);
     return formatMoveList(path, boardSize, totalLayers);
   }, [path, boardSize, totalLayers]);
 
@@ -100,90 +68,16 @@ export function MoveList({
   const activeMoveIndex = currentStep > 0 ? currentStep - 1 : -1;
 
   /**
-   * Detect simulation restart/reset and re-enable auto-scroll.
-   * A restart is detected when:
-   * - Path length becomes 0 or 1 (reset)
-   * - Path length decreases significantly (reset during playback)
+   * Always scroll to keep the active move visible when it changes
    */
   useEffect(() => {
-    const currentLength = path.length;
-    const prevLength = prevPathLengthRef.current;
-
-    // Detect reset: path length decreased or went to start
-    if (currentLength <= 1 || currentLength < prevLength - 1) {
-      console.debug("MoveList: detected simulation reset, re-enabling auto-scroll");
-      setAutoScrollEnabled(true);
+    if (activeMoveRef.current) {
+      activeMoveRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+      });
     }
-
-    prevPathLengthRef.current = currentLength;
-  }, [path.length]);
-
-  /**
-   * Handle user scroll events.
-   * Disables auto-scroll when user manually scrolls during playback.
-   */
-  const handleScroll = useCallback(() => {
-    // Ignore programmatic scrolls
-    if (isProgrammaticScrollRef.current) {
-      return;
-    }
-
-    // Only disable auto-scroll if simulation is playing
-    // This allows user to scroll freely when paused without affecting future auto-scroll
-    if (isPlaying && autoScrollEnabled) {
-      console.debug("MoveList: user scrolled during playback, disabling auto-scroll");
-      setAutoScrollEnabled(false);
-    }
-  }, [isPlaying, autoScrollEnabled]);
-
-  /**
-   * Set up scroll event listener on the viewport.
-   */
-  useEffect(() => {
-    const viewport = scrollViewportRef.current;
-    if (!viewport) return;
-
-    // Find the actual scrollable element within ScrollArea
-    const scrollableElement = viewport.querySelector("[data-radix-scroll-area-viewport]");
-    if (!scrollableElement) {
-      console.debug("MoveList: scrollable viewport not found");
-      return;
-    }
-
-    scrollableElement.addEventListener("scroll", handleScroll);
-
-    return () => {
-      scrollableElement.removeEventListener("scroll", handleScroll);
-    };
-  }, [handleScroll]);
-
-  /**
-   * Auto-scroll to keep the active move visible.
-   * Only scrolls when:
-   * - Auto-scroll is enabled (user hasn't manually scrolled)
-   * - Simulation is playing
-   * - There's an active move to scroll to
-   */
-  useEffect(() => {
-    if (!autoScrollEnabled || !isPlaying || !activeMoveRef.current) {
-      return;
-    }
-
-    // Mark this as a programmatic scroll to avoid triggering handleScroll
-    isProgrammaticScrollRef.current = true;
-
-    activeMoveRef.current.scrollIntoView({
-      behavior: "smooth",
-      block: "nearest",
-    });
-
-    // Reset the flag after a short delay to allow the scroll to complete
-    const timeoutId = setTimeout(() => {
-      isProgrammaticScrollRef.current = false;
-    }, 100);
-
-    return () => clearTimeout(timeoutId);
-  }, [activeMoveIndex, autoScrollEnabled, isPlaying]);
+  }, [activeMoveIndex]);
 
   // Calculate total moves (transitions between positions)
   const totalMoves = path.length > 1 ? path.length - 1 : 0;
@@ -202,10 +96,8 @@ export function MoveList({
       </div>
 
       {/* Scrollable move list */}
-      <div ref={scrollViewportRef} className="flex-1 min-h-0">
-        <ScrollArea
-          className="px-2 h-full"
-        >
+      <div className="flex-1 min-h-0">
+        <ScrollArea className="px-2 h-full">
           {moves.length > 0 ? (
             <div className="py-2 space-y-1">
               {moves.map((move, index) => {

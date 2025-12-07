@@ -117,6 +117,7 @@ export default function Home() {
   const [isPaused, setIsPaused] = useState(false);
   const [speed, setSpeed] = useState(3);
   const [currentStep, setCurrentStep] = useState(0);
+  const [maxStepReached, setMaxStepReached] = useState(0); // Furthest step in current playback
   const [solution, setSolution] = useState<Position[]>([]);
   const [stats, setStats] = useState({
     computationTime: 0,
@@ -181,6 +182,7 @@ export default function Home() {
     setCurrentPath([]);
     setVisitedSquares([]);
     setCurrentStep(0);
+    setMaxStepReached(0);
     setSolution([]);
     setStats({ computationTime: 0, totalMoves: 0, backtracks: 0 });
     if (animationRef.current) {
@@ -212,13 +214,18 @@ export default function Home() {
 
   const stepForward = () => {
     if (currentStep < solution.length - 1) {
-      setCurrentStep(prev => prev + 1);
+      const nextStep = currentStep + 1;
+      setCurrentStep(nextStep);
+      // Update maxStepReached if we're advancing beyond it
+      if (nextStep > maxStepReached) {
+        setMaxStepReached(nextStep);
+      }
     }
   };
 
   const stepBackward = () => {
     if (currentStep > 0) {
-      setCurrentStep(prev => prev - 1);
+      setCurrentStep(currentStep - 1);
     }
   };
 
@@ -283,7 +290,10 @@ export default function Home() {
             setIsPlaying(false);
             return prev;
           }
-          return prev + 1;
+          const nextStep = prev + 1;
+          // Also update maxStepReached during animation
+          setMaxStepReached(current => Math.max(current, nextStep));
+          return nextStep;
         });
         lastUpdateRef.current = timestamp;
       }
@@ -300,7 +310,7 @@ export default function Home() {
     };
   }, [isPlaying, isPaused, speed, solution.length]);
 
-  // Update path when step changes
+  // Update path and visited squares when step changes
   useEffect(() => {
     if (solution.length > 0) {
       const pathSoFar = solution.slice(0, currentStep + 1);
@@ -363,7 +373,7 @@ export default function Home() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isPlaying, isPaused, solution.length]);
+  }, [isPlaying, isPaused, solution.length, currentStep, maxStepReached]);
 
   // Show knight at starting position when not running
   useEffect(() => {
@@ -999,7 +1009,7 @@ export default function Home() {
           {/* Move List Panel */}
           <div className="w-[280px]">
             <MoveList
-              path={currentPath}
+              path={solution.slice(0, maxStepReached + 1)}
               boardSize={boardSize}
               totalLayers={layers}
               currentStep={currentStep}
