@@ -1,6 +1,7 @@
 import ChessBoard3D from "@/components/ChessBoard3D";
 import { ColorPicker } from "@/components/ColorPicker";
 import { GradientPreview } from "@/components/GradientPreview";
+import { MoveList } from "@/components/MoveList";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -51,6 +52,8 @@ const DEFAULT_GRADIENT_START = "#004f44"; // Dark teal
 const DEFAULT_GRADIENT_END = "#22a75e"; // Green
 const DEFAULT_OCCLUSION_ZONE_RADIUS = 1; // 3x3 grid (radius 1 = 3x3, radius 2 = 5x5, etc.)
 const DEFAULT_OCCLUSION_ENABLED = false; // Occlusion system disabled by default
+const DEFAULT_SHOW_COORDINATES = false; // Board coordinates display disabled by default
+const DEFAULT_COORDINATE_DISPLAY_MODE = "all"; // Which layers show coordinates: "all", "bottom", "top", "current"
 
 // localStorage helpers
 const getStoredNumber = (key: string, defaultValue: number): number => {
@@ -146,6 +149,12 @@ export default function Home() {
   );
   const [occlusionEnabled, setOcclusionEnabled] = useState(() =>
     getStoredBoolean("kt3d_occlusionEnabled", DEFAULT_OCCLUSION_ENABLED)
+  );
+  const [showCoordinates, setShowCoordinates] = useState(() =>
+    getStoredBoolean("kt3d_showCoordinates", DEFAULT_SHOW_COORDINATES)
+  );
+  const [coordinateDisplayMode, setCoordinateDisplayMode] = useState(() =>
+    getStoredString("kt3d_coordinateDisplayMode", DEFAULT_COORDINATE_DISPLAY_MODE)
   );
 
   const animationRef = useRef<number | undefined>(undefined);
@@ -249,6 +258,14 @@ export default function Home() {
   useEffect(() => {
     setStoredBoolean("kt3d_occlusionEnabled", occlusionEnabled);
   }, [occlusionEnabled]);
+
+  useEffect(() => {
+    setStoredBoolean("kt3d_showCoordinates", showCoordinates);
+  }, [showCoordinates]);
+
+  useEffect(() => {
+    setStoredString("kt3d_coordinateDisplayMode", coordinateDisplayMode);
+  }, [coordinateDisplayMode]);
 
   // Animation loop
   useEffect(() => {
@@ -475,6 +492,9 @@ export default function Home() {
             gradientEnd={gradientEnd}
             occlusionZoneRadius={occlusionZoneRadius}
             occlusionEnabled={occlusionEnabled}
+            showCoordinates={showCoordinates}
+            coordinateDisplayMode={coordinateDisplayMode}
+            currentKnightLayer={knightPosition?.layer ?? 0}
           />
         </div>
 
@@ -681,6 +701,8 @@ export default function Home() {
                     setGradientEnd(DEFAULT_GRADIENT_END);
                     setOcclusionZoneRadius(DEFAULT_OCCLUSION_ZONE_RADIUS);
                     setOcclusionEnabled(DEFAULT_OCCLUSION_ENABLED);
+                    setShowCoordinates(DEFAULT_SHOW_COORDINATES);
+                    setCoordinateDisplayMode(DEFAULT_COORDINATE_DISPLAY_MODE);
                   }}
                 >
                   Reset Controls
@@ -881,6 +903,46 @@ export default function Home() {
                     </div>
                   )}
                 </div>
+
+                {/* Board Coordinates */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="show-coordinates" className="text-sm">
+                      Board Coordinates
+                    </Label>
+                    <Switch
+                      id="show-coordinates"
+                      checked={showCoordinates}
+                      onCheckedChange={setShowCoordinates}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Display file letters (a-h) and rank numbers (1-8) on the board edges.
+                  </p>
+
+                  {/* Coordinate Display Mode - only show when enabled */}
+                  {showCoordinates && (
+                    <div className="space-y-2 pt-2">
+                      <Label htmlFor="coordinate-mode" className="text-xs">
+                        Show Coordinates On
+                      </Label>
+                      <Select
+                        value={coordinateDisplayMode}
+                        onValueChange={setCoordinateDisplayMode}
+                      >
+                        <SelectTrigger id="coordinate-mode">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Layers</SelectItem>
+                          <SelectItem value="bottom">Bottom Layer Only</SelectItem>
+                          <SelectItem value="top">Top Layer Only</SelectItem>
+                          <SelectItem value="current">Current Layer Only</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -893,42 +955,61 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Keyboard Controls Overlay - Fixed to bottom of viewport */}
-        <div className="fixed bottom-6 left-6 bg-card/90 backdrop-blur-sm border border-border rounded-lg p-4 shadow-lg z-40">
-          <h3 className="text-sm font-semibold mb-3 text-foreground">
-            Keyboard Controls
-          </h3>
-          <div className="space-y-2">
-            <div className="flex items-center gap-3">
-              <kbd className="px-2 py-1 text-xs font-semibold bg-muted border border-border rounded min-w-[60px] text-center">
-                Space
-              </kbd>
-              <span className="text-xs text-muted-foreground">
-                {isPlaying ? "Pause/Resume" : "Start Tour"}
-              </span>
+        {/* Bottom Panels Container - Keyboard Controls and Move List */}
+        <div className="fixed bottom-6 left-6 z-40 flex items-stretch gap-4 h-[200px]">
+          {/* Keyboard Controls Panel */}
+          <div className="bg-card/90 backdrop-blur-sm border border-border rounded-lg p-4 shadow-lg flex flex-col">
+            <h3 className="text-sm font-semibold mb-3 text-foreground">
+              Keyboard Controls
+            </h3>
+            <div className="space-y-2">
+              <div className="flex items-center gap-3">
+                <kbd className="px-2 py-1 text-xs font-semibold bg-muted border border-border rounded min-w-[60px] text-center">
+                  Space
+                </kbd>
+                <span className="text-xs text-muted-foreground">
+                  {isPlaying ? "Pause/Resume" : "Start Tour"}
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
+                <kbd className="px-2 py-1 text-xs font-semibold bg-muted border border-border rounded min-w-[60px] text-center">
+                  Enter
+                </kbd>
+                <span className="text-xs text-muted-foreground">Reset Tour</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <kbd className="px-2 py-1 text-xs font-semibold bg-muted border border-border rounded min-w-[60px] text-center">
+                  ↑ ↓
+                </kbd>
+                <span className="text-xs text-muted-foreground">
+                  Adjust Speed ({speed} steps/s)
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
+                <kbd className="px-2 py-1 text-xs font-semibold bg-muted border border-border rounded min-w-[60px] text-center">
+                  ← →
+                </kbd>
+                <span className="text-xs text-muted-foreground">
+                  Step Through Tour
+                </span>
+              </div>
             </div>
-            <div className="flex items-center gap-3">
-              <kbd className="px-2 py-1 text-xs font-semibold bg-muted border border-border rounded min-w-[60px] text-center">
-                Enter
-              </kbd>
-              <span className="text-xs text-muted-foreground">Reset Tour</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <kbd className="px-2 py-1 text-xs font-semibold bg-muted border border-border rounded min-w-[60px] text-center">
-                ↑ ↓
-              </kbd>
-              <span className="text-xs text-muted-foreground">
-                Adjust Speed ({speed} steps/s)
-              </span>
-            </div>
-            <div className="flex items-center gap-3">
-              <kbd className="px-2 py-1 text-xs font-semibold bg-muted border border-border rounded min-w-[60px] text-center">
-                ← →
-              </kbd>
-              <span className="text-xs text-muted-foreground">
-                Step Through Tour
-              </span>
-            </div>
+          </div>
+
+          {/* Move List Panel */}
+          <div className="w-[280px]">
+            <MoveList
+              path={currentPath}
+              boardSize={boardSize}
+              totalLayers={layers}
+              currentStep={currentStep}
+              isPlaying={isPlaying && !isPaused}
+              onMoveClick={(stepIndex) => {
+                // Navigate to the clicked move position
+                // This only works when paused (enforced by MoveList)
+                setCurrentStep(stepIndex);
+              }}
+            />
           </div>
         </div>
       </div>

@@ -1,11 +1,15 @@
 import { useRef, useMemo } from "react";
 import { generateGradient, getGradientColor } from "@/lib/gradientUtils";
+import { xToFile } from "@/lib/knightsTour";
 
 interface Position {
   x: number;
   y: number;
   layer: number;
 }
+
+/** Coordinate display mode options */
+type CoordinateDisplayMode = "all" | "bottom" | "top" | "current";
 
 interface ChessBoard3DProps {
   layers: number;
@@ -21,6 +25,12 @@ interface ChessBoard3DProps {
   gradientEnd?: string;
   occlusionZoneRadius?: number;
   occlusionEnabled?: boolean;
+  /** Whether to show board coordinates (files and ranks) */
+  showCoordinates?: boolean;
+  /** Which layers should display coordinates */
+  coordinateDisplayMode?: CoordinateDisplayMode;
+  /** The layer the knight is currently on (for "current" display mode) */
+  currentKnightLayer?: number;
 }
 
 export default function ChessBoard3D({
@@ -37,6 +47,9 @@ export default function ChessBoard3D({
   gradientEnd = "#22a75e",
   occlusionZoneRadius = 1,
   occlusionEnabled = false,
+  showCoordinates = false,
+  coordinateDisplayMode = "all",
+  currentKnightLayer = 0,
 }: ChessBoard3DProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -137,7 +150,58 @@ export default function ChessBoard3D({
     };
   };
 
+  /**
+   * Determines if coordinates should be displayed for a given layer
+   * based on the current display mode setting.
+   *
+   * @param layerIndex - The layer index to check (0-indexed)
+   * @returns true if coordinates should be shown on this layer
+   */
+  const shouldShowCoordinatesForLayer = (layerIndex: number): boolean => {
+    if (!showCoordinates) return false;
+
+    switch (coordinateDisplayMode) {
+      case "all":
+        return true;
+      case "bottom":
+        return layerIndex === 0;
+      case "top":
+        return layerIndex === layers - 1;
+      case "current":
+        return layerIndex === currentKnightLayer;
+      default:
+        console.warn(`Unknown coordinate display mode: ${coordinateDisplayMode}`);
+        return false;
+    }
+  };
+
+  /**
+   * Generates file letters (a-h) for coordinate display.
+   * Memoized to avoid recalculation on every render.
+   */
+  const fileLetters = useMemo(() => {
+    return Array.from({ length: boardSize }, (_, i) => {
+      try {
+        return xToFile(i, boardSize);
+      } catch (error) {
+        console.error(`Failed to get file letter for index ${i}:`, error);
+        return "?";
+      }
+    });
+  }, [boardSize]);
+
+  /**
+   * Generates rank numbers (1-8) for coordinate display.
+   * Ranks are displayed from 1 at bottom to 8 at top in standard chess.
+   */
+  const rankNumbers = useMemo(() => {
+    return Array.from({ length: boardSize }, (_, i) => (i + 1).toString());
+  }, [boardSize]);
+
   const cellSize = 40 * scaleFactor;
+
+  /** Size of coordinate labels relative to cell size */
+  const coordinateLabelSize = cellSize * 0.4;
 
   return (
     <div className="relative flex flex-col items-center justify-center min-h-[600px] py-12 gap-12">
@@ -297,6 +361,57 @@ export default function ChessBoard3D({
                         </div>
                       );
                     })
+                  )}
+
+                  {/* Board Coordinates - File letters along top edge */}
+                  {shouldShowCoordinatesForLayer(actualLayer) && (
+                    <>
+                      {/* File letters (a-h) along the top edge */}
+                      {fileLetters.map((letter, x) => (
+                        <div
+                          key={`file-${x}`}
+                          className="absolute flex items-center justify-center text-muted-foreground font-semibold pointer-events-none"
+                          style={{
+                            fontSize: `${coordinateLabelSize}px`,
+                            width: `${cellSize}px`,
+                            height: `${coordinateLabelSize}px`,
+                            left: `${x * cellSize}px`,
+                            top: `${-coordinateLabelSize - 4}px`,
+                          }}
+                        >
+                          {letter}
+                        </div>
+                      ))}
+
+                      {/* Rank numbers (1-8) along the right edge */}
+                      {rankNumbers.map((rank, y) => (
+                        <div
+                          key={`rank-${y}`}
+                          className="absolute flex items-center justify-center text-muted-foreground font-semibold pointer-events-none"
+                          style={{
+                            fontSize: `${coordinateLabelSize}px`,
+                            width: `${coordinateLabelSize}px`,
+                            height: `${cellSize}px`,
+                            left: `${boardSize * cellSize + 4}px`,
+                            top: `${y * cellSize}px`,
+                          }}
+                        >
+                          {rank}
+                        </div>
+                      ))}
+
+                      {/* Layer label (L1, L2, L3) in top-right corner */}
+                      <div
+                        className="absolute flex items-center justify-center text-primary font-bold pointer-events-none"
+                        style={{
+                          fontSize: `${coordinateLabelSize * 1.2}px`,
+                          left: `${boardSize * cellSize + 4}px`,
+                          top: `${-coordinateLabelSize - 4}px`,
+                        }}
+                      >
+                        L{actualLayer + 1}
+                      </div>
+                    </>
                   )}
                 </div>
               );
