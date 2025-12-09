@@ -50,7 +50,6 @@ const DEFAULT_VERTICAL_OFFSET = 140;
 const DEFAULT_KNIGHT_SCALE = 0.8;
 const DEFAULT_GRADIENT_START = "#004f44"; // Dark teal
 const DEFAULT_GRADIENT_END = "#22a75e"; // Green
-const DEFAULT_OCCLUSION_ZONE_RADIUS = 1; // 3x3 grid (radius 1 = 3x3, radius 2 = 5x5, etc.)
 const DEFAULT_OCCLUSION_ENABLED = false; // Occlusion system disabled by default
 const DEFAULT_SHOW_COORDINATES = false; // Board coordinates display disabled by default
 const DEFAULT_COORDINATE_DISPLAY_MODE = "all"; // Which layers show coordinates: "all", "bottom", "top", "current"
@@ -144,9 +143,6 @@ export default function Home() {
   );
   const [gradientEnd, setGradientEnd] = useState(() =>
     getStoredString("kt3d_gradientEnd", DEFAULT_GRADIENT_END)
-  );
-  const [occlusionZoneRadius, setOcclusionZoneRadius] = useState(() =>
-    getStoredNumber("kt3d_occlusionZoneRadius", DEFAULT_OCCLUSION_ZONE_RADIUS)
   );
   const [occlusionEnabled, setOcclusionEnabled] = useState(() =>
     getStoredBoolean("kt3d_occlusionEnabled", DEFAULT_OCCLUSION_ENABLED)
@@ -257,10 +253,6 @@ export default function Home() {
   useEffect(() => {
     setStoredString("kt3d_gradientEnd", gradientEnd);
   }, [gradientEnd]);
-
-  useEffect(() => {
-    setStoredNumber("kt3d_occlusionZoneRadius", occlusionZoneRadius);
-  }, [occlusionZoneRadius]);
 
   useEffect(() => {
     setStoredBoolean("kt3d_occlusionEnabled", occlusionEnabled);
@@ -500,7 +492,6 @@ export default function Home() {
             knightScale={knightScale}
             gradientStart={gradientStart}
             gradientEnd={gradientEnd}
-            occlusionZoneRadius={occlusionZoneRadius}
             occlusionEnabled={occlusionEnabled}
             showCoordinates={showCoordinates}
             coordinateDisplayMode={coordinateDisplayMode}
@@ -709,7 +700,6 @@ export default function Home() {
                     setKnightScale(DEFAULT_KNIGHT_SCALE);
                     setGradientStart(DEFAULT_GRADIENT_START);
                     setGradientEnd(DEFAULT_GRADIENT_END);
-                    setOcclusionZoneRadius(DEFAULT_OCCLUSION_ZONE_RADIUS);
                     setOcclusionEnabled(DEFAULT_OCCLUSION_ENABLED);
                     setShowCoordinates(DEFAULT_SHOW_COORDINATES);
                     setCoordinateDisplayMode(DEFAULT_COORDINATE_DISPLAY_MODE);
@@ -877,41 +867,8 @@ export default function Home() {
                     />
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Makes squares transparent when the knight is hidden behind
-                    upper layers.
+                    Automatically makes squares transparent when they visually overlap with the knight.
                   </p>
-
-                  {/* Occlusion Zone Size - only show when enabled */}
-                  {occlusionEnabled && (
-                    <div className="space-y-2 pt-2">
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor="occlusion-zone" className="text-xs">
-                          Zone Size
-                        </Label>
-                        <span className="text-xs text-muted-foreground">
-                          {occlusionZoneRadius === 0 && "1×1"}
-                          {occlusionZoneRadius === 1 && "3×3"}
-                          {occlusionZoneRadius === 2 && "5×5"}
-                          {occlusionZoneRadius === 3 && "7×7"}
-                          {occlusionZoneRadius === 4 && "9×9"}
-                        </span>
-                      </div>
-                      <Slider
-                        id="occlusion-zone"
-                        min={0}
-                        max={4}
-                        step={1}
-                        value={[occlusionZoneRadius]}
-                        onValueChange={([value]) =>
-                          setOcclusionZoneRadius(value)
-                        }
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Size of transparent area above knight. Larger values
-                        make it easier to see the knight.
-                      </p>
-                    </div>
-                  )}
                 </div>
 
                 {/* Board Coordinates */}

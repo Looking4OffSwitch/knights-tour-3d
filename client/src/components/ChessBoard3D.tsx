@@ -1,6 +1,14 @@
 import { useRef, useMemo } from "react";
 import { generateGradient, getGradientColor } from "@/lib/gradientUtils";
 import { xToFile } from "@/lib/knightsTour";
+import {
+  createSquare3D,
+  projectSquareToScreen,
+  createKnightPosition3D,
+  projectKnightToScreen,
+  type ProjectionConfig,
+} from "@/lib/projection3D";
+import { createOcclusionPartition, type SpatialItem } from "@/lib/spatialPartition";
 
 interface Position {
   x: number;
@@ -23,7 +31,6 @@ interface ChessBoard3DProps {
   knightScale?: number;
   gradientStart?: string;
   gradientEnd?: string;
-  occlusionZoneRadius?: number;
   occlusionEnabled?: boolean;
   /** Whether to show board coordinates (files and ranks) */
   showCoordinates?: boolean;
@@ -45,7 +52,6 @@ export default function ChessBoard3D({
   knightScale = 2.4,
   gradientStart = "#004f44",
   gradientEnd = "#22a75e",
-  occlusionZoneRadius = 1,
   occlusionEnabled = false,
   showCoordinates = false,
   coordinateDisplayMode = "all",
@@ -75,6 +81,9 @@ export default function ChessBoard3D({
   // Use zoom prop as scale factor
   const scaleFactor = zoom;
 
+  // Calculate cell size for use throughout the component
+  const cellSize = 40 * scaleFactor;
+
   const isVisited = (x: number, y: number, layer: number): boolean => {
     return visitedSquares.some(
       pos => pos.x === x && pos.y === y && pos.layer === layer
@@ -97,52 +106,104 @@ export default function ChessBoard3D({
   };
 
   /**
-   * Determines if a square should be made transparent to reveal the knight below
+   * Computes which squares are visually occluding the knight using screen-space projection.
+   * Returns a Set of square IDs that should be made transparent.
    *
-   * Uses a simple zone-based approach: if the knight is on a lower layer,
-   * squares directly above it (within a configurable zone radius) become transparent
-   * to ensure the knight remains visible.
-   *
-   * @param x - Square's X coordinate
-   * @param y - Square's Y coordinate
-   * @param currentLayer - The layer this square is on
-   * @param zoneRadius - Radius of the transparency zone (0 = exact position only, 1 = 3x3 grid, 2 = 5x5 grid, etc.)
-   * @returns Object with transparency state and whether square is in occlusion zone
+   * Uses spatial partitioning for efficient overlap detection:
+   * 1. Projects knight to screen space
+   * 2. Inserts all squares above knight into spatial partition
+   * 3. Queries partition for squares overlapping knight's bounding box
+   * 4. Performs fine-grained overlap test
    */
-  const getSquareOcclusionState = (
-    x: number,
-    y: number,
-    currentLayer: number,
-    zoneRadius: number
-  ): { isOccluding: boolean; distanceFromKnight: number } => {
-    // Occlusion system disabled - no transparency
-    if (!occlusionEnabled) {
-      return { isOccluding: false, distanceFromKnight: Infinity };
+  const occludingSquares = useMemo(() => {
+    const occludingSet = new Set<string>();
+
+    // Occlusion disabled or no knight - no squares occlude
+    if (!occlusionEnabled || !knightPosition) {
+      return occludingSet;
     }
 
-    // No knight or knight is on this layer or above - no occlusion
-    if (!knightPosition || knightPosition.layer >= currentLayer) {
-      return { isOccluding: false, distanceFromKnight: Infinity };
+    // Create projection configuration matching the CSS transforms
+    const config: ProjectionConfig = {
+      rotateXDeg: rotationX,
+      rotateZDeg: rotationZ,
+      scale: scaleFactor,
+      perspectiveDistance: 2000, // matches perspective: 2000px
+      verticalOffset: verticalOffset,
+    };
+
+    // Project knight to screen space
+    const knightPos3D = createKnightPosition3D(
+      knightPosition.x,
+      knightPosition.y,
+      knightPosition.layer,
+      cellSize,
+      boardSize,
+      verticalSpacing,
+      15 // knightZOffset matches translateZ(15px) in knight rendering
+    );
+    const knightBoundingBox = projectKnightToScreen(
+      knightPos3D,
+      config,
+      cellSize * knightScale // knight size in screen pixels
+    );
+
+    // Create spatial partition for efficient overlap queries
+    const partition = createOcclusionPartition<{
+      x: number;
+      y: number;
+      layer: number;
+    }>();
+
+    // Insert all squares above the knight into the partition
+    for (let layer = knightPosition.layer + 1; layer < layers; layer++) {
+      for (let y = 0; y < boardSize; y++) {
+        for (let x = 0; x < boardSize; x++) {
+          const square3D = createSquare3D(
+            x,
+            y,
+            layer,
+            cellSize,
+            boardSize,
+            verticalSpacing
+          );
+          const squareBoundingBox = projectSquareToScreen(square3D, config);
+
+          const squareId = `${x}_${y}_${layer}`;
+          partition.insert({
+            id: squareId,
+            boundingBox: squareBoundingBox,
+            data: { x, y, layer },
+          });
+        }
+      }
     }
 
-    // Calculate if this square is within the occlusion zone
-    // The zone is a square grid centered on the knight's position
-    const deltaX = Math.abs(x - knightPosition.x);
-    const deltaY = Math.abs(y - knightPosition.y);
+    // Query for overlapping squares
+    const result = partition.queryOverlapping(knightBoundingBox);
 
-    // Use Chebyshev distance (max of x and y differences) for square grid
-    const distanceFromKnight = Math.max(deltaX, deltaY);
+    // Add all overlapping squares to the set
+    for (const item of result.candidates) {
+      occludingSet.add(item.id);
+    }
 
-    // Square is occluding if it's within the zone radius
-    const isOccluding = distanceFromKnight <= zoneRadius;
-
-    return { isOccluding, distanceFromKnight };
-  };
+    return occludingSet;
+  }, [
+    occlusionEnabled,
+    knightPosition,
+    rotationX,
+    rotationZ,
+    scaleFactor,
+    verticalOffset,
+    cellSize,
+    boardSize,
+    verticalSpacing,
+    knightScale,
+    layers,
+  ]);
 
   // Convert board coordinates to 3D position
   const getSquarePosition = (x: number, y: number, layer: number) => {
-    const cellSize = 40 * scaleFactor;
-
     return {
       x: (x - boardSize / 2 + 0.5) * cellSize,
       y: (y - boardSize / 2 + 0.5) * cellSize,
@@ -197,8 +258,6 @@ export default function ChessBoard3D({
   const rankNumbers = useMemo(() => {
     return Array.from({ length: boardSize }, (_, i) => (i + 1).toString());
   }, [boardSize]);
-
-  const cellSize = 40 * scaleFactor;
 
   /** Size of coordinate labels relative to cell size */
   const coordinateLabelSize = cellSize * 0.4;
@@ -281,13 +340,9 @@ export default function ChessBoard3D({
                       const pathIdx = getPathIndex(x, y, actualLayer);
                       const hasKnight = isKnightPosition(x, y, actualLayer);
 
-                      // Check if this square is occluding the knight below
-                      const occlusionState = getSquareOcclusionState(
-                        x,
-                        y,
-                        actualLayer,
-                        occlusionZoneRadius
-                      );
+                      // Check if this square is visually occluding the knight
+                      const squareId = `${x}_${y}_${actualLayer}`;
+                      const isOccluding = occludingSquares.has(squareId);
 
                       // Get gradient color for visited squares based on path index
                       const gradientColor =
@@ -295,12 +350,10 @@ export default function ChessBoard3D({
                           ? getGradientColor(pathGradient, pathIdx)
                           : null;
 
-                      // Determine border color: amber for occluding squares, normal otherwise
-                      const borderColor = occlusionState.isOccluding
-                        ? "border-amber-500/70"
-                        : visited
-                          ? "border-border/50"
-                          : "border-border/30";
+                      // Determine border color
+                      const borderColor = visited
+                        ? "border-border/50"
+                        : "border-border/30";
 
                       return (
                         <div
@@ -318,7 +371,7 @@ export default function ChessBoard3D({
                             left: `${x * cellSize}px`,
                             top: `${y * cellSize}px`,
                             // Apply semi-transparency to occluding squares (0.2 = 20% opacity)
-                            opacity: occlusionState.isOccluding ? 0.2 : 1,
+                            opacity: isOccluding ? 0.2 : 1,
                             backgroundColor: gradientColor || undefined,
                             boxShadow: gradientColor
                               ? `0 4px 6px -1px ${gradientColor}40, 0 2px 4px -1px ${gradientColor}30`
